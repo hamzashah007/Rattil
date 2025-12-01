@@ -52,7 +52,7 @@ final List<Package> packages = [
   ),
   Package(
     id: 2,
-    name: 'Intermediate Package',
+    name: 'Intermediate',
     price: 18,
     duration: '3 classes per week',
     time: '40-45 minutes',
