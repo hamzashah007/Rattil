@@ -7,6 +7,7 @@ import 'package:rattil/widgets/why_choose_us_section.dart';
 import 'package:rattil/widgets/student_reviews_section.dart';
 import 'package:rattil/widgets/curved_bottom_bar.dart';
 import 'package:rattil/widgets/drawer_menu.dart';
+import 'package:rattil/screens/packages_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -23,10 +24,55 @@ class _HomeScreenState extends State<HomeScreen> {
   final int notificationCount = 2;
 
   void _onBottomBarTap(int index) {
+    if (_selectedIndex == index) return;
     setState(() {
       _selectedIndex = index;
     });
-    // TODO: Handle navigation between Home, Packages, Profile
+    // No navigation, just update index for CurvedNavigationBar animation
+  }
+
+  void _goToPackagesTab() {
+    setState(() {
+      _selectedIndex = 1;
+    });
+  }
+
+  Widget _getScreenContent() {
+    if (_selectedIndex == 0) {
+      debugPrint('HomeScreen: Showing Home tab');
+      return SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              child: HeroCard(
+                isDarkMode: isDarkMode,
+                onViewPackages: _goToPackagesTab,
+              ),
+            ),
+            FeaturedCoursesGrid(
+              isDarkMode: isDarkMode,
+              onViewDetails: (pkg) {},
+              onViewMore: _goToPackagesTab,
+            ),
+            const SizedBox(height: 24),
+            WhyChooseUsSection(isDarkMode: isDarkMode),
+            const SizedBox(height: 24),
+            StudentReviewsSection(isDarkMode: isDarkMode),
+          ],
+        ),
+      );
+    } else if (_selectedIndex == 1) {
+      debugPrint('HomeScreen: Showing Packages tab');
+      return PackagesScreen(showAppBar: false, isDarkMode: isDarkMode);
+    } else {
+      debugPrint('HomeScreen: Showing Profile tab');
+      return Padding(
+        padding: const EdgeInsets.only(top: 24),
+        child: Center(child: Text('Profile Screen', style: TextStyle(fontSize: 32))),
+      );
+    }
   }
 
   void _toggleDrawer() {
@@ -96,35 +142,7 @@ class _HomeScreenState extends State<HomeScreen> {
               top: kToolbarHeight + MediaQuery.of(context).padding.top,
               bottom: 0,
             ),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    child: HeroCard(
-                      isDarkMode: isDarkMode,
-                      onViewPackages: () {
-                        // TODO: Navigate to packages screen
-                      },
-                    ),
-                  ),
-                  FeaturedCoursesGrid(
-                    isDarkMode: isDarkMode,
-                    onViewDetails: (pkg) {
-                      // TODO: Navigate to package details
-                    },
-                    onViewMore: () {
-                      // TODO: Navigate to all packages
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  WhyChooseUsSection(isDarkMode: isDarkMode),
-                  const SizedBox(height: 24),
-                  StudentReviewsSection(isDarkMode: isDarkMode),
-                ],
-              ),
-            ),
+            child: _getScreenContent(),
           ),
         ),
         DrawerMenu(

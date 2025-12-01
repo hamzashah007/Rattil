@@ -11,6 +11,7 @@ class CurvedBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('CurvedBottomBar: selectedIndex=$selectedIndex, isDarkMode=$isDarkMode');
     return Material(
       type: MaterialType.transparency,
       elevation: 0,
@@ -23,9 +24,48 @@ class CurvedBottomBar extends StatelessWidget {
         animationCurve: Curves.easeInOut,
         animationDuration: const Duration(milliseconds: 400),
         items: [
-          Icon(Icons.home, size: 28, color: selectedIndex == 0 ? Colors.white : Colors.teal),
-          Icon(Icons.grid_view, size: 28, color: selectedIndex == 1 ? Colors.white : Colors.teal),
-          Icon(Icons.person, size: 28, color: selectedIndex == 2 ? Colors.white : Colors.teal),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.home, size: 28, color: selectedIndex == 0 ? Colors.white : Colors.teal),
+              if (selectedIndex != 0) ...[
+                const SizedBox(height: 4),
+                Text('Home', style: TextStyle(
+                  color: Colors.teal,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                )),
+              ],
+            ],
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.grid_view, size: 28, color: selectedIndex == 1 ? Colors.white : Colors.teal),
+              if (selectedIndex != 1) ...[
+                const SizedBox(height: 4),
+                Text('Packages', style: TextStyle(
+                  color: Colors.teal,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                )),
+              ],
+            ],
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.person, size: 28, color: selectedIndex == 2 ? Colors.white : Colors.teal),
+              if (selectedIndex != 2) ...[
+                const SizedBox(height: 4),
+                Text('Profile', style: TextStyle(
+                  color: Colors.teal,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                )),
+              ],
+            ],
+          ),
         ],
         onTap: onTap,
       ),

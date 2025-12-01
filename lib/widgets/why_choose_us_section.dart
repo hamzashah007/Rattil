@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:rattil/widgets/feature_card.dart';
-import 'package:rattil/utils/theme_colors.dart';
 
 class WhyChooseUsSection extends StatelessWidget {
   final bool isDarkMode;
@@ -8,6 +7,7 @@ class WhyChooseUsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('WhyChooseUsSection: isDarkMode=$isDarkMode');
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 0),
       child: Column(
@@ -18,7 +18,7 @@ class WhyChooseUsSection extends StatelessWidget {
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: isDarkMode ? ThemeColors.darkText : ThemeColors.lightText,
+              color: isDarkMode ? Colors.white : Colors.black,
             ),
           ),
           const SizedBox(height: 16),
@@ -32,23 +32,23 @@ class WhyChooseUsSection extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               FeatureCard(
-                icon: '📚',
-                title: 'Flexible Learning',
-                description: 'Study at your own pace and schedule',
-                isDarkMode: isDarkMode,
-              ),
-              const SizedBox(height: 12),
-              FeatureCard(
-                icon: '🏆',
-                title: 'Certificates',
-                description: 'Get certified upon course completion',
-                isDarkMode: isDarkMode,
-              ),
-              const SizedBox(height: 12),
-              FeatureCard(
                 icon: '💬',
                 title: 'Live Sessions',
-                description: 'Interactive one-on-one classes',
+                description: 'Interactive classes',
+                isDarkMode: isDarkMode,
+              ),
+              const SizedBox(height: 12),
+              FeatureCard(
+                icon: '📖',
+                title: 'Start from Basic Level',
+                description: 'Begin your Quran learning journey from the fundamentals',
+                isDarkMode: isDarkMode,
+              ),
+              const SizedBox(height: 12),
+              FeatureCard(
+                icon: '🤝',
+                title: 'Personalized Guidance',
+                description: 'Receive individual attention and support from tutors',
                 isDarkMode: isDarkMode,
               ),
             ],

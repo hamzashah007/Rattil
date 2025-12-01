@@ -27,6 +27,7 @@ class DrawerMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('DrawerMenu: isDrawerOpen=$isDrawerOpen, isDarkMode=$isDarkMode');
     final drawerBg = isDarkMode ? const Color(0xFF1F2937) : Colors.white;
     final textColor = isDarkMode ? Colors.white : const Color(0xFF111827);
     final subtextColor = isDarkMode ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280);
@@ -152,33 +153,22 @@ class DrawerMenu extends StatelessWidget {
                     // Menu Items
                     _buildMenuItem(
                       context,
-                      icon: Icons.home,
-                      text: 'Home',
+                      icon: Icons.history,
+                      text: 'Transaction History',
                       onTap: () {
                         HapticFeedback.lightImpact();
-                        handleNavigation('/home');
+                        handleNavigation('/transactions');
                       },
                       textColor: textColor,
                       hoverBg: hoverBg,
                     ),
                     _buildMenuItem(
                       context,
-                      icon: Icons.person,
-                      text: 'My Profile',
+                      icon: Icons.star_rate,
+                      text: 'Rate our App',
                       onTap: () {
                         HapticFeedback.lightImpact();
-                        handleNavigation('/profile');
-                      },
-                      textColor: textColor,
-                      hoverBg: hoverBg,
-                    ),
-                    _buildMenuItem(
-                      context,
-                      icon: Icons.inventory_2,
-                      text: 'Packages',
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        handleNavigation('/packages');
+                        handleNavigation('/rate');
                       },
                       textColor: textColor,
                       hoverBg: hoverBg,
@@ -228,7 +218,14 @@ class DrawerMenu extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    const SizedBox(height: 16),
+                    Container(
+                      margin: const EdgeInsets.symmetric(vertical: 0),
+                      child: Divider(
+                        color: borderColor,
+                        thickness: 1,
+                        height: 1,
+                      ),
+                    ),
                     _buildMenuItem(
                       context,
                       icon: Icons.logout,
