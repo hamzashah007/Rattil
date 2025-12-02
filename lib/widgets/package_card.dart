@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:rattil/models/package.dart';
+import 'package:rattil/screens/trial_request_success_screen.dart';
 
 class PackageCard extends StatefulWidget {
   final Package package;
@@ -295,7 +296,17 @@ class _PackageCardState extends State<PackageCard> with SingleTickerProviderStat
                             width: double.infinity,
                             child: InkWell(
                               borderRadius: BorderRadius.circular(12),
-                              onTap: () {}, // TODO: Request Trial action
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => TrialRequestSuccessScreen(
+                                      isDarkMode: widget.isDarkMode,
+                                      package: widget.package,
+                                    ),
+                                  ),
+                                );
+                              },
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 200),
                                 curve: Curves.ease,
