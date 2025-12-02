@@ -3,12 +3,12 @@ import 'package:rattil/models/package.dart';
 import 'package:rattil/widgets/course_card.dart';
 import 'package:rattil/utils/theme_colors.dart';
 
-class FeaturedCoursesGrid extends StatelessWidget {
+class OurPackage extends StatelessWidget {
   final bool isDarkMode;
   final void Function(Package) onViewDetails;
   final void Function() onViewMore;
 
-  const FeaturedCoursesGrid({
+  const OurPackage({
     Key? key,
     required this.isDarkMode,
     required this.onViewDetails,
@@ -27,9 +27,8 @@ class FeaturedCoursesGrid extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Change section title
               Text(
-                'Our Packages', // Updated from 'Featured Courses'
+                'Our Packages',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -39,16 +38,16 @@ class FeaturedCoursesGrid extends StatelessWidget {
               InkWell(
                 onTap: onViewMore,
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end, // Lower the View More text
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Padding(
-                      padding: const EdgeInsets.only(top: 5), // Move View More text a bit lower
+                      padding: const EdgeInsets.only(top: 5),
                       child: Text(
                         'View More',
                         style: TextStyle(
                           color: accentColor,
                           fontWeight: FontWeight.w600,
-                          fontSize: 14, // Made View More text a bit smaller
+                          fontSize: 14,
                         ),
                       ),
                     ),
@@ -62,16 +61,16 @@ class FeaturedCoursesGrid extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: 8), // Add a little padding above the cards
+          SizedBox(height: 8),
           GridView.builder(
-            padding: EdgeInsets.zero, // Remove any default grid padding
+            padding: EdgeInsets.zero,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
               crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              childAspectRatio: 0.62, // Lower aspect ratio for taller cards
+              mainAxisSpacing: 14, // Changed from 16 to 14
+              childAspectRatio: 0.62,
             ),
             itemCount: packages.take(2).length,
             itemBuilder: (context, index) {

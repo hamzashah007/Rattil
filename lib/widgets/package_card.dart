@@ -5,7 +5,8 @@ class PackageCard extends StatefulWidget {
   final Package package;
   final int delay;
   final bool isDarkMode;
-  const PackageCard({Key? key, required this.package, required this.delay, required this.isDarkMode}) : super(key: key);
+  final VoidCallback? onEnroll;
+  const PackageCard({Key? key, required this.package, required this.delay, required this.isDarkMode, this.onEnroll}) : super(key: key);
 
   @override
   State<PackageCard> createState() => _PackageCardState();
@@ -42,6 +43,7 @@ class _PackageCardState extends State<PackageCard> with SingleTickerProviderStat
 
     // Modern, softer gradients for each package type
     List<Color> gradient;
+    String displayName = pkg.name == 'Intermediate Package' ? 'Intermediate' : pkg.name;
     switch (pkg.name) {
       case 'Premium Intensive':
         gradient = [Color(0xFFFFE0B2), Color(0xFFFFA726)]; // Soft Orange to Amber
@@ -149,7 +151,11 @@ class _PackageCardState extends State<PackageCard> with SingleTickerProviderStat
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(pkg.name, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textColor)),
+                                    Text(
+                                      displayName,
+                                      style: TextStyle(
+                                        fontSize: 24, fontWeight: FontWeight.bold, color: textColor),
+                                    ),
                                     const SizedBox(height: 8),
                                     Text('\$${pkg.price}', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF0d9488), height: 1)),
                                     Text('per month', style: TextStyle(fontSize: 14, color: subtitleColor)),
@@ -264,7 +270,7 @@ class _PackageCardState extends State<PackageCard> with SingleTickerProviderStat
                             width: double.infinity,
                             child: InkWell(
                               borderRadius: BorderRadius.circular(12),
-                              onTap: () {}, // TODO: Enroll action
+                              onTap: widget.onEnroll,
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 200),
                                 curve: Curves.ease,

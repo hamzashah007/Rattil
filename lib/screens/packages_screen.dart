@@ -6,6 +6,8 @@ import 'package:rattil/widgets/app_bar_widget.dart';
 import 'package:rattil/widgets/curved_bottom_bar.dart';
 
 import 'package:rattil/widgets/drawer_menu.dart';
+import 'package:rattil/screens/profile_screen.dart';
+import 'package:rattil/screens/enroll_now_screen.dart';
 
 
 class PackagesScreen extends StatefulWidget {
@@ -91,6 +93,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
                   color: widget.isDarkMode ? AppConstants.textColorDark : AppConstants.textColor,
                 ),
               ),
+              
             ),
           ),
           Expanded(
@@ -98,10 +101,20 @@ class _PackagesScreenState extends State<PackagesScreen> {
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 75),
               itemCount: filteredPackages.length,
               itemBuilder: (context, index) {
+                final pkg = filteredPackages[index];
                 return PackageCard(
-                  package: filteredPackages[index],
+                  package: pkg,
                   delay: index * 100,
                   isDarkMode: widget.isDarkMode,
+                  // Add navigation callback
+                  onEnroll: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => EnrollNowScreen(isDarkMode: widget.isDarkMode, package: pkg),
+                      ),
+                    );
+                  },
                 );
               },
             ),
@@ -109,7 +122,12 @@ class _PackagesScreenState extends State<PackagesScreen> {
         ],
       );
     } else {
-      return Center(child: Text('Profile Screen', style: TextStyle(fontSize: 32)));
+      return ProfileScreen(
+        isDarkMode: widget.isDarkMode,
+        userName: userName,
+        userEmail: userEmail,
+        userAvatarUrl: userAvatarUrl,
+      );
     }
   }
 

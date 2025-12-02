@@ -8,6 +8,9 @@ import 'package:rattil/widgets/student_reviews_section.dart';
 import 'package:rattil/widgets/curved_bottom_bar.dart';
 import 'package:rattil/widgets/drawer_menu.dart';
 import 'package:rattil/screens/packages_screen.dart';
+import 'package:rattil/screens/profile_screen.dart';
+import 'package:rattil/screens/package_detail_screen.dart';
+import 'package:rattil/screens/transaction_history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -51,15 +54,25 @@ class _HomeScreenState extends State<HomeScreen> {
                 onViewPackages: _goToPackagesTab,
               ),
             ),
-            FeaturedCoursesGrid(
+            OurPackage(
               isDarkMode: isDarkMode,
-              onViewDetails: (pkg) {},
+              onViewDetails: (pkg) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PackageDetailScreen(
+                      package: pkg,
+                      isDarkMode: isDarkMode,
+                    ),
+                  ),
+                );
+              },
               onViewMore: _goToPackagesTab,
             ),
-            const SizedBox(height: 24),
+        
             WhyChooseUsSection(isDarkMode: isDarkMode),
             const SizedBox(height: 24),
-            StudentReviewsSection(isDarkMode: isDarkMode),
+          
           ],
         ),
       );
@@ -68,9 +81,11 @@ class _HomeScreenState extends State<HomeScreen> {
       return PackagesScreen(showAppBar: false, isDarkMode: isDarkMode);
     } else {
       debugPrint('HomeScreen: Showing Profile tab');
-      return Padding(
-        padding: const EdgeInsets.only(top: 24),
-        child: Center(child: Text('Profile Screen', style: TextStyle(fontSize: 32))),
+      return ProfileScreen(
+        isDarkMode: isDarkMode,
+        userName: 'Ahmad Hassan',
+        userEmail: 'ahmad@example.com',
+        userAvatarUrl: null,
       );
     }
   }
@@ -95,7 +110,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _handleNavigation(String route) {
     _closeDrawer();
-    Navigator.pushNamed(context, route);
+    if (route == '/transactions') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TransactionHistoryScreen(isDarkMode: isDarkMode),
+        ),
+      );
+    } else if (route == '/rate') {
+      // Example: open rate screen
+    } else {
+      // Add other direct navigation cases here if needed
+    }
   }
 
   void _handleLogout() {
