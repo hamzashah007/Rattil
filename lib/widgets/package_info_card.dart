@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:rattil/models/package.dart';
+import 'package:rattil/utils/constants.dart';
 
 class PackageInfoCard extends StatelessWidget {
   final Package package;
@@ -22,8 +23,10 @@ class PackageInfoCard extends StatelessWidget {
       default:
         gradient = [Color(package.colorGradientStart), Color(package.colorGradientEnd)];
     }
-    final textColor = isDarkMode ? Colors.white : Color(0xFF111827);
-    final subtitleColor = isDarkMode ? Color(0xFF9CA3AF) : Color(0xFF6B7280);
+    final textColor = isDarkMode ? AppConstants.textColorDark : AppConstants.textColor;
+    final subtitleColor = isDarkMode ? AppConstants.subtitleColorDark : AppConstants.subtitleColor;
+    final detailBoxBg = isDarkMode ? AppConstants.detailBoxBgDark : AppConstants.detailBoxBg;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -77,10 +80,11 @@ class PackageInfoCard extends StatelessWidget {
         const SizedBox(height: 16),
         Container(
           decoration: BoxDecoration(
-            color: Color(0xFFF3F4F6), // Consistent light grey background
+             color: detailBoxBg,
             borderRadius: BorderRadius.circular(12),
           ),
           padding: const EdgeInsets.all(16),
+          margin: const EdgeInsets.only(bottom: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -92,7 +96,7 @@ class PackageInfoCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Duration', style: TextStyle(fontSize: 12, color: subtitleColor)),
-                      Text(package.duration, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
+                      Text(package.duration, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ],
@@ -106,7 +110,7 @@ class PackageInfoCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Session Time', style: TextStyle(fontSize: 12, color: subtitleColor)),
-                      Text(package.time, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
+                      Text(package.time, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ],
@@ -121,9 +125,19 @@ class PackageInfoCard extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 8),
           child: Row(
             children: [
-              Icon(Icons.check_circle, color: Color(0xFF14b8a6), size: 20),
+              Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: Color(0xFF009688),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Icon(Icons.check, color: Colors.white, size: 14),
+                ),
+              ),
               const SizedBox(width: 8),
-              Text(f, style: TextStyle(fontSize: 15, color: textColor)),
+              Text(f, style: TextStyle(fontSize: 14, color: isDarkMode ? AppConstants.subtitleColorDark : Color(0xFF374151))),
             ],
           ),
         )),

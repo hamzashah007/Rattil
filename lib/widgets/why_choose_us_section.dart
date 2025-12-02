@@ -51,6 +51,7 @@ class WhyChooseUsSection extends StatelessWidget {
                 description: 'Receive individual attention and support from tutors',
                 isDarkMode: isDarkMode,
               ),
+                SizedBox(height: 80),
             ],
           ),
         ],

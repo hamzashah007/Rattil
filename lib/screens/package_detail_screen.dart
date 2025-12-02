@@ -136,11 +136,11 @@ class PackageDetailScreen extends StatelessWidget {
                   width: 20,
                   height: 20,
                   decoration: BoxDecoration(
-                    color: Color(0xFFccfbf1),
+                    color: Color(0xFF009688),
                     shape: BoxShape.circle,
                   ),
                   child: Center(
-                    child: Icon(Icons.check, color: Color(0xFF009688), size: 14),
+                    child: Icon(Icons.check, color: Color.fromARGB(255, 255, 255, 255), size: 14),
                   ),
                 ),
                 const SizedBox(width: 8),

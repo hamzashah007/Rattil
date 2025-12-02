@@ -72,7 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
         
             WhyChooseUsSection(isDarkMode: isDarkMode),
             const SizedBox(height: 24),
-            StudentReviewsSection(isDarkMode: isDarkMode),
+          
           ],
         ),
       );
