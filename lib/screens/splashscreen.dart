@@ -3,7 +3,6 @@ import 'package:rattil/screens/auth/sign_in.dart';
 import 'dart:async';
 import 'package:rattil/utils/app_colors.dart';
 
-
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
 
@@ -11,7 +10,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with TickerProviderStateMixin {
   late AnimationController _logoController;
   late Animation<double> _logoFadeAnimation;
   late Animation<double> _logoScaleAnimation;
@@ -34,21 +34,24 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    _logoFadeAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _logoController, curve: Curves.easeOut),
-    );
-    _logoScaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(parent: _logoController, curve: Curves.easeOut),
-    );
+    _logoFadeAnimation = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _logoController, curve: Curves.easeOut));
+    _logoScaleAnimation = Tween<double>(
+      begin: 0.5,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _logoController, curve: Curves.easeOut));
 
     // Title fade
     _titleController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
     );
-    _titleFadeAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _titleController, curve: Curves.easeIn),
-    );
+    _titleFadeAnimation = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _titleController, curve: Curves.easeIn));
 
     // Subtitle fade
     _subtitleController = AnimationController(
@@ -79,7 +82,6 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
     // Auto navigation after 2.5 seconds
     Future.delayed(const Duration(milliseconds: 2500), () {
-      // TODO: Replace with your actual navigation logic
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => SignInScreen()),
@@ -115,70 +117,49 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
           ),
         ),
         child: Center(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 100.0), // Move content lower
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                FadeTransition(
-                  opacity: _logoFadeAnimation,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              FadeTransition(
+                opacity: _logoFadeAnimation,
+                child: ScaleTransition(
+                  scale: _logoScaleAnimation,
                   child: ScaleTransition(
-                    scale: _logoScaleAnimation,
-                    child: ScaleTransition(
-                      scale: _pulseAnimation,
-                      child: Container(
-                        width: 128,
-                        height: 128,
-                        decoration: BoxDecoration(
-                          color: white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.15),
-                              blurRadius: 24,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Text(
-                            '📖', // Replace with SVG icon if desired
-                            style: const TextStyle(fontSize: 64),
-                          ),
-                        ),
-                      ),
+                    scale: _pulseAnimation,
+                    child: Image.asset(
+                      'assets/icon/app_icon.png',
+                      width: 150,
+                      height:150,
+                      color: white, // Tint icon white
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
-                FadeTransition(
-                  opacity: _titleFadeAnimation,
-                  child: Text(
-                    'Learn Quran',
-                    style: TextStyle(
-                      // Use GoogleFonts.poppins if desired
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: white,
-                    ),
+              ),
+              const SizedBox(height: 2),
+              FadeTransition(
+                opacity: _titleFadeAnimation,
+                child: Text(
+                  'Rattil',
+                  style: TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                    color: white,
                   ),
                 ),
-                const SizedBox(height: 8),
-                FadeTransition(
-                  opacity: _subtitleFadeAnimation,
-                  child: Text(
-                    'Online Quran Academy',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w400,
-                      color: tealLight,
-                    ),
+              ),
+              const SizedBox(height: 6),
+              FadeTransition(
+                opacity: _subtitleFadeAnimation,
+                child: Text(
+                  'Learn Quran with Ease',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w400,
+                    color: tealLight,
                   ),
                 ),
-                const SizedBox(height: 32),
-                // Removed loading indicator
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
