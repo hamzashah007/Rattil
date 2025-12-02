@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:rattil/models/package.dart';
 
 class PackageCard extends StatefulWidget {
@@ -133,7 +134,12 @@ class _PackageCardState extends State<PackageCard> with SingleTickerProviderStat
                             ),
                           ),
                           Center(
-                            child: Text('📖', style: TextStyle(fontSize: 80, color: Colors.white)),
+                            child: SvgPicture.asset(
+                              'assets/icon/app_icon.svg',
+                              width: 80,
+                              height: 80,
+                              color: Colors.white,
+                            ),
                           ),
                         ],
                       ),
@@ -152,9 +158,15 @@ class _PackageCardState extends State<PackageCard> with SingleTickerProviderStat
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      displayName,
+                                      pkg.name,
                                       style: TextStyle(
-                                        fontSize: 24, fontWeight: FontWeight.bold, color: textColor),
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.bold,
+                                        
+                                        height: 1,
+                                        letterSpacing: -1,
+                                        wordSpacing: -2,
+                                      ),
                                     ),
                                     const SizedBox(height: 8),
                                     Text('\$${pkg.price}', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF0d9488), height: 1)),
@@ -226,11 +238,11 @@ class _PackageCardState extends State<PackageCard> with SingleTickerProviderStat
                                               width: 20,
                                               height: 20,
                                               decoration: BoxDecoration(
-                                                color: Color(0xFFccfbf1),
+                                                color: Color(0xFF0d9488),
                                                 shape: BoxShape.circle,
                                               ),
                                               child: Center(
-                                                child: Icon(Icons.check, color: Color(0xFF0d9488), size: 14),
+                                                child: Icon(Icons.check, color: Color.fromARGB(255, 255, 255, 255), size: 14),
                                               ),
                                             ),
                                             const SizedBox(width: 8),
@@ -241,27 +253,8 @@ class _PackageCardState extends State<PackageCard> with SingleTickerProviderStat
                                     : SizedBox.shrink();
                                 })
                                 .toList(),
-                              if (pkg.name == 'Premium Intensive')
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        width: 20,
-                                        height: 20,
-                                        decoration: BoxDecoration(
-                                          color: Color(0xFFccfbf1),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Center(
-                                          child: Icon(Icons.check, color: Color(0xFF0d9488), size: 14),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text('Qualified Tutors', style: TextStyle(fontSize: 14, color: widget.isDarkMode ? Color(0xFFd1d5db) : Color(0xFF374151))),
-                                    ],
-                                  ),
-                                ),
+    
+                                
                             ],
                           ),
                           const SizedBox(height: 20),

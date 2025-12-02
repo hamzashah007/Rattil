@@ -43,22 +43,48 @@ class _QuranCarouselState extends State<QuranCarousel> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: widget.height,
-      child: PageView.builder(
-        controller: _pageController,
-        itemCount: widget.imageUrls.length,
-        onPageChanged: (index) => setState(() => _currentIndex = index),
-        itemBuilder: (context, index) {
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Image.network(
-              widget.imageUrls[index],
-              fit: BoxFit.cover,
-              width: double.infinity,
-            ),
-          );
-        },
+    final assetImages = [
+      'assets/quran carousel/banner_1.png',
+      'assets/quran carousel/banner_2.png',
+      'assets/quran carousel/banner_3.png',
+    ];
+
+    if (assetImages.isEmpty) {
+      return Container(
+        height: 180,
+        alignment: Alignment.center,
+        child: Text('No banners available', style: TextStyle(color: Colors.grey, fontSize: 18)),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 9, bottom: 16),
+      child: AspectRatio(
+        aspectRatio: 4 / 3, // <-- For 1600x1200 images (full display)
+        child: PageView.builder(
+          controller: _pageController,
+          itemCount: assetImages.length,
+          onPageChanged: (index) => setState(() => _currentIndex = index),
+          itemBuilder: (context, index) {
+            return Image.asset(
+              assetImages[index],
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => Container(
+                color: Colors.grey[200],
+                child: const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                      SizedBox(height: 8),
+                      Text('Image not found', style: TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }

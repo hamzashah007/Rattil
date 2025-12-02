@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:rattil/screens/auth/sign_in.dart';
 import 'dart:async';
 import 'package:rattil/utils/app_colors.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -126,10 +127,10 @@ class _SplashScreenState extends State<SplashScreen>
                   scale: _logoScaleAnimation,
                   child: ScaleTransition(
                     scale: _pulseAnimation,
-                    child: Image.asset(
-                      'assets/icon/app_icon.png',
+                    child: SvgPicture.asset(
+                      'assets/icon/app_icon.svg',
                       width: 150,
-                      height:150,
+                      height: 150,
                       color: white, // Tint icon white
                     ),
                   ),

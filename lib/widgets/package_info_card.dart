@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:rattil/models/package.dart';
 import 'package:rattil/utils/constants.dart';
 
@@ -68,13 +69,18 @@ class PackageInfoCard extends StatelessWidget {
                 ),
               ),
               Center(
-                child: Text('📖', style: TextStyle(fontSize: 64)),
+                child: SvgPicture.asset(
+                  'assets/icon/app_icon.svg',
+                  width: 64,
+                  height: 64,
+                  color: Colors.white,
+                ),
               ),
             ],
           ),
         ),
         const SizedBox(height: 24),
-        Text(package.name, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: textColor)),
+        Text(package.name, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: textColor, letterSpacing: -1, wordSpacing: 0)),
         const SizedBox(height: 8),
         Text('\$${package.price} / month', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF009688))),
         const SizedBox(height: 16),

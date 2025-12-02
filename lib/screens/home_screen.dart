@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:rattil/utils/theme_colors.dart';
 import 'package:rattil/widgets/app_bar_widget.dart';
-import 'package:rattil/widgets/hero_card.dart';
+import 'package:rattil/widgets/quran_carousel.dart';
 import 'package:rattil/widgets/our_packages.dart';
 import 'package:rattil/widgets/why_choose_us_section.dart';
-import 'package:rattil/widgets/student_reviews_section.dart';
 import 'package:rattil/widgets/curved_bottom_bar.dart';
 import 'package:rattil/widgets/drawer_menu.dart';
 import 'package:rattil/screens/packages_screen.dart';
@@ -47,12 +46,14 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: double.infinity,
-              child: HeroCard(
-                isDarkMode: isDarkMode,
-                onViewPackages: _goToPackagesTab,
-              ),
+            QuranCarousel(
+              imageUrls: [
+                // Add your image URLs here
+                'https://your-image-url-1.jpg',
+                'https://your-image-url-2.jpg',
+                'https://your-image-url-3.jpg',
+              ],
+              height: 180,
             ),
             OurPackage(
               isDarkMode: isDarkMode,
@@ -69,10 +70,8 @@ class _HomeScreenState extends State<HomeScreen> {
               },
               onViewMore: _goToPackagesTab,
             ),
-        
             WhyChooseUsSection(isDarkMode: isDarkMode),
             const SizedBox(height: 24),
-          
           ],
         ),
       );

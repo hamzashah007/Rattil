@@ -91,6 +91,8 @@ class _PackagesScreenState extends State<PackagesScreen> {
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: widget.isDarkMode ? AppConstants.textColorDark : AppConstants.textColor,
+                  letterSpacing: -1,
+                  wordSpacing: 0,
                 ),
               ),
               

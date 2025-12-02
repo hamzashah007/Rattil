@@ -33,6 +33,8 @@ class OurPackage extends StatelessWidget {
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                   color: textColor,
+                  letterSpacing: -2,
+                  wordSpacing: 0,
                 ),
               ),
               InkWell(

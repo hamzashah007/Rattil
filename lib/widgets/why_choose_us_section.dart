@@ -19,6 +19,8 @@ class WhyChooseUsSection extends StatelessWidget {
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: isDarkMode ? Colors.white : Colors.black,
+              letterSpacing: -1,
+              wordSpacing: 0,
             ),
           ),
           const SizedBox(height: 16),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:rattil/models/package.dart';
 import 'package:rattil/utils/theme_colors.dart';
 
@@ -84,8 +85,13 @@ class CourseCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const Center(
-                child: Text('📖', style: TextStyle(fontSize: 48, color: Colors.white)),
+              Center(
+                child: SvgPicture.asset(
+                  'assets/icon/app_icon.svg',
+                  width: 48,
+                  height: 48,
+                  color: Colors.white,
+                ),
               ),
             ],
           ),
@@ -96,6 +102,8 @@ class CourseCard extends StatelessWidget {
             fontSize: 16, // Bigger font for name
             fontWeight: FontWeight.w700,
             color: isDarkMode ? ThemeColors.darkText : ThemeColors.lightText,
+            letterSpacing: 0,
+            wordSpacing: 0,
           ),
         ),
         SizedBox(height: 3), // Reduced spacing

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:rattil/utils/app_colors.dart';
 import 'package:rattil/widgets/custom_text_field.dart';
 
@@ -86,28 +87,11 @@ class _SignInScreenState extends State<SignInScreen> {
 										children: [
 											const SizedBox(height: 80),
 											// Logo
-											Container(
+											SvgPicture.asset(
+												'assets/icon/app_icon.svg',
 												width: 80,
 												height: 80,
-												margin: const EdgeInsets.only(bottom: 16),
-												decoration: BoxDecoration(
-													shape: BoxShape.circle,
-													gradient: LinearGradient(
-														colors: [AppColors.teal500, AppColors.teal700],
-														begin: Alignment.topLeft,
-														end: Alignment.bottomRight,
-													),
-													boxShadow: [
-														BoxShadow(
-															color: AppColors.teal500.withOpacity(0.3),
-															blurRadius: 12,
-															offset: const Offset(0, 4),
-														),
-													],
-												),
-												child: Center(
-													child: Text('📖', style: TextStyle(fontSize: 40)),
-												),
+												color: AppColors.teal500,
 											),
 											// Welcome text
 											Text(
