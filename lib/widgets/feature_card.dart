@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/utils/theme_colors.dart';
 
 class FeatureCard extends StatefulWidget {
   final String icon;
   final String title;
   final String description;
-  final bool isDarkMode;
 
   const FeatureCard({
     Key? key,
     required this.icon,
     required this.title,
     required this.description,
-    required this.isDarkMode,
   }) : super(key: key);
 
   @override
@@ -24,9 +24,11 @@ class _FeatureCardState extends State<FeatureCard> {
 
   @override
   Widget build(BuildContext context) {
-    final cardBg = widget.isDarkMode ? ThemeColors.darkCard : ThemeColors.lightCard;
-    final textColor = widget.isDarkMode ? ThemeColors.darkText : ThemeColors.lightText;
-    final subtitleColor = widget.isDarkMode ? ThemeColors.darkSubtitle : ThemeColors.lightSubtitle;
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+    final cardBg = isDarkMode ? ThemeColors.darkCard : ThemeColors.lightCard;
+    final textColor = isDarkMode ? ThemeColors.darkText : ThemeColors.lightText;
+    final subtitleColor = isDarkMode ? ThemeColors.darkSubtitle : ThemeColors.lightSubtitle;
     return MouseRegion(
       onEnter: (_) => setState(() => isHovered = true),
       onExit: (_) => setState(() => isHovered = false),

@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 import 'package:rattil/models/package.dart';
+import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/screens/trial_request_success_screen.dart';
 
 class PackageCard extends StatefulWidget {
   final Package package;
   final int delay;
-  final bool isDarkMode;
   final VoidCallback? onEnroll;
-  const PackageCard({Key? key, required this.package, required this.delay, required this.isDarkMode, this.onEnroll}) : super(key: key);
+  const PackageCard({Key? key, required this.package, required this.delay, this.onEnroll}) : super(key: key);
 
   @override
   State<PackageCard> createState() => _PackageCardState();
@@ -40,12 +41,13 @@ class _PackageCardState extends State<PackageCard> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('PackageCard: ${widget.package.name}, isDarkMode=${widget.isDarkMode}');
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+    debugPrint('PackageCard: ${widget.package.name}, isDarkMode=$isDarkMode');
     final pkg = widget.package;
 
     // Modern, softer gradients for each package type
     List<Color> gradient;
-    String displayName = pkg.name == 'Intermediate Package' ? 'Intermediate' : pkg.name;
     switch (pkg.name) {
       case 'Premium Intensive':
         gradient = [Color(0xFFFFE0B2), Color(0xFFFFA726)]; // Soft Orange to Amber
@@ -60,10 +62,10 @@ class _PackageCardState extends State<PackageCard> with SingleTickerProviderStat
         gradient = [Color(pkg.colorGradientStart), Color(pkg.colorGradientEnd)]; // Fallback
     }
 
-    final cardBg = widget.isDarkMode ? Color(0xFF1F2937) : Colors.white;
-    final textColor = widget.isDarkMode ? Colors.white : Color(0xFF111827);
-    final subtitleColor = widget.isDarkMode ? Color(0xFF9CA3AF) : Color(0xFF6B7280);
-    final detailBoxBg = widget.isDarkMode ? Color(0xFF374151) : Color(0xFFF9FAFB);
+    final cardBg = isDarkMode ? Color(0xFF1F2937) : Colors.white;
+    final textColor = isDarkMode ? Colors.white : Color(0xFF111827);
+    final subtitleColor = isDarkMode ? Color(0xFF9CA3AF) : Color(0xFF6B7280);
+    final detailBoxBg = isDarkMode ? Color(0xFF374151) : Color(0xFFF9FAFB);
 
     return MouseRegion(
       onEnter: (_) => setState(() => isHovered = true),
@@ -247,7 +249,7 @@ class _PackageCardState extends State<PackageCard> with SingleTickerProviderStat
                                               ),
                                             ),
                                             const SizedBox(width: 8),
-                                            Text(cleaned, style: TextStyle(fontSize: 14, color: widget.isDarkMode ? Color(0xFFd1d5db) : Color(0xFF374151))),
+                                            Text(cleaned, style: TextStyle(fontSize: 14, color: isDarkMode ? Color(0xFFd1d5db) : Color(0xFF374151))),
                                           ],
                                         ),
                                       )
@@ -301,7 +303,6 @@ class _PackageCardState extends State<PackageCard> with SingleTickerProviderStat
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => TrialRequestSuccessScreen(
-                                      isDarkMode: widget.isDarkMode,
                                       package: widget.package,
                                     ),
                                   ),

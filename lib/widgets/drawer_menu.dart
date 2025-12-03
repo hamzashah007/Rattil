@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:rattil/providers/theme_provider.dart';
+import 'package:rattil/providers/drawer_provider.dart';
 
 class DrawerMenu extends StatelessWidget {
-  final bool isDrawerOpen;
-  final bool isDarkMode;
   final VoidCallback closeDrawer;
   final VoidCallback toggleDarkMode;
   final Function(String route) handleNavigation;
@@ -14,8 +15,6 @@ class DrawerMenu extends StatelessWidget {
 
   const DrawerMenu({
     Key? key,
-    required this.isDrawerOpen,
-    required this.isDarkMode,
     required this.closeDrawer,
     required this.toggleDarkMode,
     required this.handleNavigation,
@@ -27,6 +26,11 @@ class DrawerMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final drawerProvider = Provider.of<DrawerProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+    final isDrawerOpen = drawerProvider.isDrawerOpen;
+    
     debugPrint('DrawerMenu: isDrawerOpen=$isDrawerOpen, isDarkMode=$isDarkMode');
     final drawerBg = isDarkMode ? const Color(0xFF1F2937) : Colors.white;
     final textColor = isDarkMode ? Colors.white : const Color(0xFF111827);
@@ -36,7 +40,6 @@ class DrawerMenu extends StatelessWidget {
     final avatarGradientStart = const Color(0xFF2dd4bf);
     final avatarGradientEnd = const Color(0xFF0d9488);
     final toggleOnColor = const Color(0xFF0d9488);
-    final toggleOffColor = const Color(0xFFd1d5db);
     final logoutColor = const Color(0xFFef4444);
     final overlayColor = Colors.black.withOpacity(0.5);
 

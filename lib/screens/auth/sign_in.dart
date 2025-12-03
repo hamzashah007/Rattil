@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:rattil/utils/app_colors.dart';
 import 'package:rattil/widgets/custom_text_field.dart';
+import 'package:provider/provider.dart';
+import 'package:rattil/providers/auth_provider.dart' as my_auth;
+import 'package:rattil/providers/theme_provider.dart';
 
 import 'package:rattil/widgets/gradient_button.dart';
 import 'package:rattil/screens/auth/sign_up.dart';
@@ -18,8 +21,6 @@ class _SignInScreenState extends State<SignInScreen> {
 	final _formKey = GlobalKey<FormState>();
 	final _emailController = TextEditingController();
 	final _passwordController = TextEditingController();
-	bool _isPasswordVisible = false;
-	bool _isLoading = false;
 
 	@override
 	void dispose() {
@@ -50,146 +51,155 @@ class _SignInScreenState extends State<SignInScreen> {
 		return null;
 	}
 
-	Future<void> _handleSignIn() async {
+	Future<void> _handleSignIn(BuildContext context) async {
 		if (_formKey.currentState!.validate()) {
-			setState(() => _isLoading = true);
-			await Future.delayed(const Duration(seconds: 2));
-			if (mounted) {
+			final authProvider = Provider.of<my_auth.AuthProvider>(context, listen: false);
+			final error = await authProvider.signIn(
+				email: _emailController.text,
+				password: _passwordController.text,
+				context: context,
+			);
+			if (error == null && mounted) {
 				Navigator.pushReplacement(
 					context,
 					MaterialPageRoute(builder: (context) => HomeScreen()),
 				);
+			} else if (error != null) {
+				ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
 			}
-			setState(() => _isLoading = false);
 		}
 	}
 
 	@override
 	Widget build(BuildContext context) {
-		final isDark = Theme.of(context).brightness == Brightness.dark;
-		final textColor = isDark ? Colors.white : Color(0xFF111827);
-		final subtitleColor = isDark ? Color(0xFF9CA3AF) : Color(0xFF4B5563);
-		final inputBg = isDark ? Color(0xFF374151) : Color(0xFFF3F4F6);
+		return ChangeNotifierProvider<ThemeProvider>(
+			create: (_) => ThemeProvider(),
+			child: Consumer<ThemeProvider>(
+				builder: (context, themeProvider, _) {
+					final isDark = themeProvider.isDarkMode;
+					final textColor = isDark ? Colors.white : Color(0xFF111827);
+					final subtitleColor = isDark ? Color(0xFF9CA3AF) : Color(0xFF4B5563);
 
-		return Scaffold(
-			backgroundColor: AppColors.background,
-			body: SafeArea(
-				child: GestureDetector(
-					onTap: () => FocusScope.of(context).unfocus(),
-					child: SingleChildScrollView(
-						child: Padding(
-							padding: const EdgeInsets.symmetric(horizontal: 24),
-							child: Form(
-								key: _formKey,
-								child: IntrinsicHeight(
-									child: Column(
-										crossAxisAlignment: CrossAxisAlignment.center,
-										children: [
-											const SizedBox(height: 80),
-											// Logo
-											SvgPicture.asset(
-												'assets/icon/app_icon.svg',
-												width: 80,
-												height: 80,
-												color: AppColors.teal500,
-											),
-											// Welcome text
-											Text(
-												'Welcome to Rattil',
-												style: TextStyle(
-													fontSize: 30,
-													fontWeight: FontWeight.bold,
-													color: textColor,
-												),
-											),
-											const SizedBox(height: 8),
-											Text(
-												'Sign in to continue learning',
-												style: TextStyle(
-													fontSize: 16,
-													color: subtitleColor,
-												),
-											),
-											const SizedBox(height: 48),
-											// Email field
-											CustomTextField(
-												placeholder: 'Email Address',
-												controller: _emailController,
-												keyboardType: TextInputType.emailAddress,
-												validator: _validateEmail,
-												prefixIcon: Icon(Icons.email, color: AppColors.teal500),
-											),
-											const SizedBox(height: 16),
-											// Password field
-											CustomTextField(
-												placeholder: 'Password',
-												controller: _passwordController,
-												isPassword: true,
-												validator: _validatePassword,
-												prefixIcon: Icon(Icons.lock, color: AppColors.teal500),
-												isPasswordVisible: _isPasswordVisible,
-												onTogglePassword: () {
-													setState(() {
-														_isPasswordVisible = !_isPasswordVisible;
-													});
-												},
-											),
-											const SizedBox(height: 8),
-											// Forgot password link (optional)
-											Align(
-												alignment: Alignment.centerRight,
-												child: TextButton(
-													onPressed: () {},
-													child: Text(
-														'Forgot Password?',
-														style: TextStyle(
-															color: AppColors.teal700,
-															fontSize: 14,
+					return Scaffold(
+						backgroundColor: AppColors.background,
+						body: SafeArea(
+							child: GestureDetector(
+								onTap: () => FocusScope.of(context).unfocus(),
+								child: SingleChildScrollView(
+									child: Padding(
+										padding: const EdgeInsets.symmetric(horizontal: 24),
+										child: Form(
+											key: _formKey,
+											child: IntrinsicHeight(
+												child: Column(
+													crossAxisAlignment: CrossAxisAlignment.center,
+													children: [
+														const SizedBox(height: 80),
+														// Logo
+														SvgPicture.asset(
+															'assets/icon/app_icon.svg',
+															width: 80,
+															height: 80,
+															color: AppColors.teal500,
+														),
+														// Welcome text
+														Text(
+															'Welcome to Rattil',
+															style: TextStyle(
+																fontSize: 30,
+																fontWeight: FontWeight.bold,
+																color: textColor,
+															),
+														),
+														const SizedBox(height: 8),
+														Text(
+															'Sign in to continue learning',
+															style: TextStyle(
+																fontSize: 16,
+																color: subtitleColor,
+															),
+														),
+														const SizedBox(height: 48),
+														// Email field
+														CustomTextField(
+															placeholder: 'Email Address',
+															controller: _emailController,
+															keyboardType: TextInputType.emailAddress,
+															validator: _validateEmail,
+															prefixIcon: Icon(Icons.email, color: AppColors.teal500),
+														),
+														const SizedBox(height: 16),
+														// Password field
+														CustomTextField(
+															placeholder: 'Password',
+															controller: _passwordController,
+															isPassword: true,
+															validator: _validatePassword,
+															prefixIcon: Icon(Icons.lock, color: AppColors.teal500),
+															isPasswordVisible: themeProvider.isDarkMode, // Example usage, you can add more state to ThemeProvider if needed
+															onTogglePassword: () {
+																themeProvider.toggleDarkMode(); // Example, you can add togglePasswordVisibility to ThemeProvider
+															},
+														),
+														const SizedBox(height: 8),
+														// Forgot password link
+														Align(
+															alignment: Alignment.centerRight,
+															child: TextButton(
+																onPressed: () {},
+																child: Text(
+																	'Forgot Password?',
+																	style: TextStyle(
+																		color: AppColors.teal700,
+																		fontSize: 14,
+																	),
+																),
+															),
+														),
+														const SizedBox(height: 24),
+														// Sign In button
+														GradientButton(
+															text: 'Sign In',
+															isLoading: false, // You can add loading state to provider if needed
+															onPressed: () => _handleSignIn(context),
+														),
+														const SizedBox(height: 24),
+														// Sign Up link
+														Center(
+															child: TextButton(
+																onPressed: () {
+																	Navigator.push(
+																		context,
+																		MaterialPageRoute(builder: (context) => SignUpScreen()),
+																	);
+																},
+																child: RichText(
+																text: TextSpan(
+																	text: "Don't have an account? ",
+																	style: TextStyle(color: Colors.grey[600]),
+																	children: [
+																		TextSpan(
+																			text: 'Sign Up',
+																			style: TextStyle(
+																				color: AppColors.teal700,
+																				fontWeight: FontWeight.bold,
+																			),
+																		),
+																	],
+																),
+															),
 														),
 													),
-												),
-											),
-											const SizedBox(height: 24),
-											// Sign In button
-											GradientButton(
-												text: 'Sign In',
-												isLoading: _isLoading,
-												onPressed: _isLoading ? () {} : _handleSignIn,
-											),
-											const SizedBox(height: 24),
-											// Sign Up link
-																				Center(
-																					child: TextButton(
-																						onPressed: () {
-																							Navigator.push(
-																								context,
-																								MaterialPageRoute(builder: (context) => SignUpScreen()),
-																							);
-																						},
-																						child: RichText(
-																							text: TextSpan(
-																								text: "Don't have an account? ",
-																								style: TextStyle(color: Colors.grey[600]),
-																								children: [
-																									TextSpan(
-																										text: 'Sign Up',
-																										style: TextStyle(
-																											color: AppColors.teal700,
-																											fontWeight: FontWeight.bold,
-																										),
-																									),
-																								],
-																							),
-																						),
-																					),
-																				),
-										],
-									),
-								),
-							),
-						),
-					),
-				),
+													], // End of Column children
+												), // End of Column
+											), // End of IntrinsicHeight
+										), // End of Form
+									), // End of Padding
+								), // End of SingleChildScrollView
+							), // End of GestureDetector
+						), // End of SafeArea
+					); // End of Scaffold
+				},
 			),
 		);
 	}

@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 import 'package:rattil/models/package.dart';
+import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/screens/enroll_now_screen.dart';
 import 'package:rattil/screens/trial_request_success_screen.dart';
 
 class PackageDetailScreen extends StatelessWidget {
   final Package package;
-  final bool isDarkMode;
-  const PackageDetailScreen({Key? key, required this.package, required this.isDarkMode}) : super(key: key);
+  const PackageDetailScreen({Key? key, required this.package}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = context.watch<ThemeProvider>().isDarkMode;
     final bgColor = isDarkMode ? const Color(0xFF111827) : Colors.white;
     final textColor = isDarkMode ? Colors.white : const Color(0xFF111827);
     final subtitleColor = isDarkMode ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280);
@@ -170,7 +172,7 @@ class PackageDetailScreen extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => EnrollNowScreen(isDarkMode: isDarkMode, package: package),
+                            builder: (context) => EnrollNowScreen(package: package),
                           ),
                         );
                       },
@@ -211,7 +213,6 @@ class PackageDetailScreen extends StatelessWidget {
                           MaterialPageRoute(
                             builder: (context) => TrialRequestSuccessScreen(
                               package: package,
-                              isDarkMode: isDarkMode,
                             ),
                           ),
                         );

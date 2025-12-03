@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:rattil/models/package.dart';
+import 'package:rattil/providers/theme_provider.dart';
 
 class PaymentConfirmationScreen extends StatelessWidget {
   final String userName;
@@ -8,7 +10,6 @@ class PaymentConfirmationScreen extends StatelessWidget {
   final String cardNumber;
   final String cardholderName;
   final Package package;
-  final bool isDarkMode;
   final VoidCallback onConfirm;
   final VoidCallback onCancel;
 
@@ -20,7 +21,6 @@ class PaymentConfirmationScreen extends StatelessWidget {
     required this.cardNumber,
     required this.cardholderName,
     required this.package,
-    required this.isDarkMode,
     required this.onConfirm,
     required this.onCancel,
   }) : super(key: key);
@@ -34,10 +34,11 @@ class PaymentConfirmationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
     final cardBg = isDarkMode ? Color(0xFF1F2937) : Colors.white;
     final textColor = isDarkMode ? Colors.white : Color(0xFF111827);
     final subtitleColor = isDarkMode ? Color(0xFF9CA3AF) : Color(0xFF6B7280);
-    final tealPrimary = Color(0xFF14b8a6);
     final tealDark = Color(0xFF0d9488);
 
     return Scaffold(

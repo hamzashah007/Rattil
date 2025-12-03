@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/utils/theme_colors.dart';
 
 class AppBarWidget extends StatelessWidget implements PreferredSizeWidget {
-  final bool isDarkMode;
   final int notificationCount;
   final VoidCallback onMenuTap;
   final VoidCallback onNotificationTap;
 
   const AppBarWidget({
     Key? key,
-    required this.isDarkMode,
     required this.notificationCount,
     required this.onMenuTap,
     required this.onNotificationTap,
@@ -20,6 +20,8 @@ class AppBarWidget extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
     final bgColor = isDarkMode ? ThemeColors.darkCard : ThemeColors.lightCard;
     final textColor = isDarkMode ? ThemeColors.darkText : ThemeColors.lightText;
     return Material(

@@ -1,22 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:rattil/models/package.dart';
+import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/widgets/course_card.dart';
 import 'package:rattil/utils/theme_colors.dart';
 
 class OurPackage extends StatelessWidget {
-  final bool isDarkMode;
   final void Function(Package) onViewDetails;
   final void Function() onViewMore;
 
   const OurPackage({
     Key? key,
-    required this.isDarkMode,
     required this.onViewDetails,
     required this.onViewMore,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
     final textColor = isDarkMode ? ThemeColors.darkText : ThemeColors.lightText;
     final accentColor = ThemeColors.primaryTealDark;
     return Padding(
@@ -79,7 +81,6 @@ class OurPackage extends StatelessWidget {
               final pkg = packages[index];
               return CourseCard(
                 package: pkg,
-                isDarkMode: isDarkMode,
                 onViewDetails: () => onViewDetails(pkg),
               );
             },

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/utils/app_colors.dart';
 import 'package:rattil/utils/theme_colors.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
@@ -6,11 +8,12 @@ import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 class CurvedBottomBar extends StatelessWidget {
   final int selectedIndex;
   final Function(int) onTap;
-  final bool isDarkMode;
-  const CurvedBottomBar({Key? key, required this.selectedIndex, required this.onTap, this.isDarkMode = false}) : super(key: key);
+  const CurvedBottomBar({Key? key, required this.selectedIndex, required this.onTap}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
     debugPrint('CurvedBottomBar: selectedIndex=$selectedIndex, isDarkMode=$isDarkMode');
     return Material(
       type: MaterialType.transparency,

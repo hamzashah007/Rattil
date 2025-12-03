@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/utils/theme_colors.dart';
 
 class TransactionHistoryScreen extends StatelessWidget {
-  final bool isDarkMode;
-  const TransactionHistoryScreen({Key? key, required this.isDarkMode}) : super(key: key);
+  const TransactionHistoryScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = context.watch<ThemeProvider>().isDarkMode;
     final bgColor = isDarkMode ? ThemeColors.darkBg : ThemeColors.lightBg;
     final cardColor = isDarkMode ? ThemeColors.darkCard : ThemeColors.lightCard;
     final textColor = isDarkMode ? ThemeColors.darkText : ThemeColors.lightText;

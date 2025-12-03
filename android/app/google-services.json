@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "21739793114",
+    "project_id": "rattil-quran-app",
+    "storage_bucket": "rattil-quran-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:21739793114:android:8b4e9b252a7050e21653e3",
+        "android_client_info": {
+          "package_name": "com.example.rattil"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAEimTL2-n9LWX8K93pxjDkQh0vlRzX_SQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

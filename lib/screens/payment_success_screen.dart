@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:rattil/models/package.dart';
+import 'package:rattil/providers/theme_provider.dart';
 
 class PaymentSuccessScreen extends StatelessWidget {
   final String transactionId;
   final Package package;
-  final bool isDarkMode;
-  const PaymentSuccessScreen({Key? key, required this.transactionId, required this.package, required this.isDarkMode}) : super(key: key);
+  const PaymentSuccessScreen({Key? key, required this.transactionId, required this.package}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final isDark = isDarkMode;
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
     final bgColor = isDark ? Color(0xFF111827) : Color(0xFFF9FAFB);
     final cardBg = isDark ? Color(0xFF1F2937) : Colors.white;
     final textColor = isDark ? Colors.white : Color(0xFF111827);

@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:rattil/models/package.dart';
+import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/utils/theme_colors.dart';
 import 'package:rattil/widgets/package_info_card.dart';
 import 'package:rattil/screens/payment_screen.dart';
 
 class EnrollNowScreen extends StatefulWidget {
-  final bool isDarkMode;
   final Package package;
   const EnrollNowScreen({
     Key? key,
-    required this.isDarkMode,
     required this.package,
   }) : super(key: key);
 
@@ -20,15 +20,12 @@ class EnrollNowScreen extends StatefulWidget {
 class _EnrollNowScreenState extends State<EnrollNowScreen> {
   @override
   Widget build(BuildContext context) {
-    final isDarkMode = widget.isDarkMode;
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
     final package = widget.package;
     final bgColor = isDarkMode ? ThemeColors.darkBg : Colors.white;
     final cardColor = isDarkMode ? ThemeColors.darkCard : ThemeColors.lightCard;
     final textColor = isDarkMode ? ThemeColors.darkText : ThemeColors.lightText;
-    final subtextColor = isDarkMode
-        ? ThemeColors.darkSubtitle
-        : ThemeColors.lightSubtitle;
-    final accentColor = ThemeColors.primaryTeal;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -48,7 +45,7 @@ class _EnrollNowScreenState extends State<EnrollNowScreen> {
           children: [
             const SizedBox(height: 16),
             // Package Info Card
-            PackageInfoCard(package: package, isDarkMode: isDarkMode),
+            PackageInfoCard(package: package),
             const SizedBox(height: 24),
            
          
@@ -78,7 +75,6 @@ class _EnrollNowScreenState extends State<EnrollNowScreen> {
                         MaterialPageRoute(
                           builder: (context) => PaymentScreen(
                             selectedPackage: package,
-                            isDarkMode: isDarkMode,
                           ),
                         ),
                       );

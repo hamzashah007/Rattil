@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:rattil/models/package.dart';
+import 'package:rattil/providers/packages_provider.dart';
+import 'package:rattil/providers/theme_provider.dart';
+import 'package:rattil/providers/drawer_provider.dart';
 import 'package:rattil/utils/constants.dart';
 import 'package:rattil/widgets/package_card.dart';
 import 'package:rattil/widgets/app_bar_widget.dart';
 import 'package:rattil/widgets/curved_bottom_bar.dart';
-
 import 'package:rattil/widgets/drawer_menu.dart';
 import 'package:rattil/screens/profile_screen.dart';
 import 'package:rattil/screens/enroll_now_screen.dart';
 
-
 class PackagesScreen extends StatefulWidget {
   final bool showAppBar;
-  final bool isDarkMode;
-  const PackagesScreen({Key? key, this.showAppBar = true, required this.isDarkMode}) : super(key: key);
+  const PackagesScreen({Key? key, this.showAppBar = true}) : super(key: key);
 
   @override
   State<PackagesScreen> createState() => _PackagesScreenState();
@@ -21,64 +22,56 @@ class PackagesScreen extends StatefulWidget {
 
 class _PackagesScreenState extends State<PackagesScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  int _selectedIndex = 1;
-  bool isDrawerOpen = false;
   final int notificationCount = 2;
-  final String userName = 'John Doe'; // Replace with actual user data
-  final String userEmail = 'john@example.com'; // Replace with actual user data
-  final String? userAvatarUrl = null; // Replace with actual user data
+  final String userName = 'John Doe';
+  final String userEmail = 'john@example.com';
+  final String? userAvatarUrl = null;
 
-  void _onBottomBarTap(int index) {
-    if (_selectedIndex == index) return;
+  void _onBottomBarTap(BuildContext context, int index) {
+    final provider = Provider.of<PackagesProvider>(context, listen: false);
+    if (provider.selectedIndex == index) return;
     if (index == 0 && Navigator.of(context).canPop()) {
       debugPrint('PackagesScreen: Home icon tapped, popping to HomeScreen');
       Navigator.pop(context);
       return;
     }
-    setState(() {
-      _selectedIndex = index;
-    });
-    // Only update selectedIndex, do not navigate to a new screen
-    // CurvedNavigationBar will handle its own animation
+    provider.setSelectedIndex(index);
   }
 
-  void _toggleDrawer() {
-    setState(() {
-      isDrawerOpen = !isDrawerOpen;
-    });
+  void _toggleDrawer(BuildContext context) {
+    final drawerProvider = Provider.of<DrawerProvider>(context, listen: false);
+    drawerProvider.setDrawerOpen(!drawerProvider.isDrawerOpen);
   }
 
-  void _closeDrawer() {
-    setState(() {
-      isDrawerOpen = false;
-    });
+  void _closeDrawer(BuildContext context) {
+    Provider.of<DrawerProvider>(context, listen: false).closeDrawer();
   }
 
-  void _toggleDarkMode() {
-    setState(() {
-      // isDarkMode = !isDarkMode;
-    });
+  void _toggleDarkMode(BuildContext context) {
+    Provider.of<ThemeProvider>(context, listen: false).toggleDarkMode();
   }
 
-  void _handleNavigation(String route) {
-    _closeDrawer();
-    // Implement navigation logic here
+  void _handleNavigation(BuildContext context, String route) {
+    _closeDrawer(context);
   }
 
-  void _handleLogout() {
-    _closeDrawer();
-    // Implement logout logic here
+  void _handleLogout(BuildContext context) {
+    _closeDrawer(context);
   }
 
   List<Package> get filteredPackages {
     return packages;
   }
 
-  Widget _getScreenContent() {
-    debugPrint('PackagesScreen: Showing tab index: $_selectedIndex');
-    if (_selectedIndex == 0) {
+  Widget _getScreenContent(BuildContext context) {
+    final provider = Provider.of<PackagesProvider>(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+    
+    debugPrint('PackagesScreen: Showing tab index: ${provider.selectedIndex}');
+    if (provider.selectedIndex == 0) {
       return Center(child: Text('Home Screen', style: TextStyle(fontSize: 32)));
-    } else if (_selectedIndex == 1) {
+    } else if (provider.selectedIndex == 1) {
       return Column(
         children: [
           Padding(
@@ -90,12 +83,11 @@ class _PackagesScreenState extends State<PackagesScreen> {
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: widget.isDarkMode ? AppConstants.textColorDark : AppConstants.textColor,
+                  color: isDarkMode ? AppConstants.textColorDark : AppConstants.textColor,
                   letterSpacing: -1,
                   wordSpacing: 0,
                 ),
               ),
-              
             ),
           ),
           Expanded(
@@ -107,13 +99,11 @@ class _PackagesScreenState extends State<PackagesScreen> {
                 return PackageCard(
                   package: pkg,
                   delay: index * 100,
-                  isDarkMode: widget.isDarkMode,
-                  // Add navigation callback
                   onEnroll: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => EnrollNowScreen(isDarkMode: widget.isDarkMode, package: pkg),
+                        builder: (context) => EnrollNowScreen(package: pkg),
                       ),
                     );
                   },
@@ -125,7 +115,6 @@ class _PackagesScreenState extends State<PackagesScreen> {
       );
     } else {
       return ProfileScreen(
-        isDarkMode: widget.isDarkMode,
         userName: userName,
         userEmail: userEmail,
         userAvatarUrl: userAvatarUrl,
@@ -135,47 +124,53 @@ class _PackagesScreenState extends State<PackagesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Scaffold(
-          key: _scaffoldKey,
-          backgroundColor: widget.isDarkMode ? AppConstants.bgColorDark : AppConstants.bgColor,
-          appBar: widget.showAppBar
-              ? PreferredSize(
-                  preferredSize: Size.fromHeight(kToolbarHeight),
-                  child: AppBarWidget(
-                    isDarkMode: widget.isDarkMode,
-                    notificationCount: notificationCount,
-                    onMenuTap: _toggleDrawer,
-                    onNotificationTap: () {},
+    return ChangeNotifierProvider<PackagesProvider>(
+      create: (_) => PackagesProvider(),
+      child: Consumer3<PackagesProvider, ThemeProvider, DrawerProvider>(
+        builder: (context, provider, themeProvider, drawerProvider, _) {
+          final isDarkMode = themeProvider.isDarkMode;
+          final isDrawerOpen = drawerProvider.isDrawerOpen;
+          
+          return Stack(
+            children: [
+              Scaffold(
+                key: _scaffoldKey,
+                backgroundColor: isDarkMode ? AppConstants.bgColorDark : AppConstants.bgColor,
+                appBar: widget.showAppBar
+                    ? PreferredSize(
+                        preferredSize: Size.fromHeight(kToolbarHeight),
+                        child: AppBarWidget(
+                          notificationCount: notificationCount,
+                          onMenuTap: () => _toggleDrawer(context),
+                          onNotificationTap: () {},
+                        ),
+                      )
+                    : null,
+                body: _getScreenContent(context),
+              ),
+              DrawerMenu(
+                closeDrawer: () => _closeDrawer(context),
+                toggleDarkMode: () => _toggleDarkMode(context),
+                handleNavigation: (route) => _handleNavigation(context, route),
+                handleLogout: () => _handleLogout(context),
+                userName: userName,
+                userEmail: userEmail,
+                userAvatarUrl: userAvatarUrl,
+              ),
+              if (!isDrawerOpen)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: CurvedBottomBar(
+                    selectedIndex: provider.selectedIndex,
+                    onTap: (index) => _onBottomBarTap(context, index),
                   ),
-                )
-              : null,
-          body: _getScreenContent(),
-        ),
-        DrawerMenu(
-          isDrawerOpen: isDrawerOpen,
-          isDarkMode: widget.isDarkMode,
-          closeDrawer: _closeDrawer,
-          toggleDarkMode: _toggleDarkMode,
-          handleNavigation: _handleNavigation,
-          handleLogout: _handleLogout,
-          userName: userName,
-          userEmail: userEmail,
-          userAvatarUrl: userAvatarUrl,
-        ),
-        if (!isDrawerOpen)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: CurvedBottomBar(
-              selectedIndex: _selectedIndex,
-              onTap: _onBottomBarTap,
-              isDarkMode: widget.isDarkMode,
-            ),
-          ),
-      ],
+                ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

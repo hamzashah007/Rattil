@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:rattil/providers/home_provider.dart';
+import 'package:rattil/providers/theme_provider.dart';
+import 'package:rattil/providers/drawer_provider.dart';
 import 'package:rattil/utils/theme_colors.dart';
 import 'package:rattil/widgets/app_bar_widget.dart';
 import 'package:rattil/widgets/quran_carousel.dart';
@@ -20,35 +24,26 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  int _selectedIndex = 0;
-  bool isDarkMode = false;
-  bool isDrawerOpen = false;
   final int notificationCount = 2;
 
-  void _onBottomBarTap(int index) {
-    if (_selectedIndex == index) return;
-    setState(() {
-      _selectedIndex = index;
-    });
-    // No navigation, just update index for CurvedNavigationBar animation
+  void _onBottomBarTap(BuildContext context, int index) {
+    final provider = Provider.of<HomeProvider>(context, listen: false);
+    if (provider.selectedIndex == index) return;
+    provider.setSelectedIndex(index);
   }
 
-  void _goToPackagesTab() {
-    setState(() {
-      _selectedIndex = 1;
-    });
+  void _goToPackagesTab(BuildContext context) {
+    Provider.of<HomeProvider>(context, listen: false).setSelectedIndex(1);
   }
 
-  Widget _getScreenContent() {
-    if (_selectedIndex == 0) {
-      debugPrint('HomeScreen: Showing Home tab');
+  Widget _getScreenContent(BuildContext context, int selectedIndex) {
+    if (selectedIndex == 0) {
       return SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             QuranCarousel(
               imageUrls: [
-                // Add your image URLs here
                 'https://your-image-url-1.jpg',
                 'https://your-image-url-2.jpg',
                 'https://your-image-url-3.jpg',
@@ -56,32 +51,25 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 180,
             ),
             OurPackage(
-              isDarkMode: isDarkMode,
               onViewDetails: (pkg) {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => PackageDetailScreen(
-                      package: pkg,
-                      isDarkMode: isDarkMode,
-                    ),
+                    builder: (context) => PackageDetailScreen(package: pkg),
                   ),
                 );
               },
-              onViewMore: _goToPackagesTab,
+              onViewMore: () => _goToPackagesTab(context),
             ),
-            WhyChooseUsSection(isDarkMode: isDarkMode),
+            WhyChooseUsSection(),
             const SizedBox(height: 24),
           ],
         ),
       );
-    } else if (_selectedIndex == 1) {
-      debugPrint('HomeScreen: Showing Packages tab');
-      return PackagesScreen(showAppBar: false, isDarkMode: isDarkMode);
+    } else if (selectedIndex == 1) {
+      return PackagesScreen(showAppBar: false);
     } else {
-      debugPrint('HomeScreen: Showing Profile tab');
       return ProfileScreen(
-        isDarkMode: isDarkMode,
         userName: 'Ahmad Hassan',
         userEmail: 'ahmad@example.com',
         userAvatarUrl: null,
@@ -89,31 +77,27 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _toggleDrawer() {
-    setState(() {
-      isDrawerOpen = !isDrawerOpen;
-    });
+  void _toggleDrawer(BuildContext context) {
+    final drawerProvider = Provider.of<DrawerProvider>(context, listen: false);
+    drawerProvider.setDrawerOpen(!drawerProvider.isDrawerOpen);
   }
 
-  void _closeDrawer() {
-    setState(() {
-      isDrawerOpen = false;
-    });
+  void _closeDrawer(BuildContext context) {
+    Provider.of<DrawerProvider>(context, listen: false).closeDrawer();
   }
 
-  void _toggleDarkMode() {
-    setState(() {
-      isDarkMode = !isDarkMode;
-    });
+  void _toggleDarkMode(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    themeProvider.toggleDarkMode();
   }
 
-  void _handleNavigation(String route) {
-    _closeDrawer();
+  void _handleNavigation(BuildContext context, String route) {
+    _closeDrawer(context);
     if (route == '/transactions') {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => TransactionHistoryScreen(isDarkMode: isDarkMode),
+          builder: (context) => TransactionHistoryScreen(),
         ),
       );
     } else if (route == '/rate') {
@@ -123,8 +107,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _handleLogout() {
-    _closeDrawer();
+  void _handleLogout(BuildContext context) {
+    _closeDrawer(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -149,49 +133,55 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = isDarkMode ? ThemeColors.darkBg : ThemeColors.lightBg;
-    return Stack(
-      children: [
-        Scaffold(
-          key: _scaffoldKey,
-          extendBodyBehindAppBar: true,
-          backgroundColor: bgColor,
-          appBar: AppBarWidget(
-            isDarkMode: isDarkMode,
-            notificationCount: notificationCount,
-            onMenuTap: _toggleDrawer,
-            onNotificationTap: () {},
-          ),
-          body: Padding(
-            padding: EdgeInsets.only(
-              top: kToolbarHeight + MediaQuery.of(context).padding.top,
-              bottom: 0,
-            ),
-            child: _getScreenContent(),
-          ),
-        ),
-        DrawerMenu(
-          isDrawerOpen: isDrawerOpen,
-          isDarkMode: isDarkMode,
-          closeDrawer: _closeDrawer,
-          toggleDarkMode: _toggleDarkMode,
-          handleNavigation: _handleNavigation,
-          handleLogout: _handleLogout,
-          userName: 'Ahmad Hassan',
-          userEmail: 'ahmad@example.com',
-        ),
-        if (!isDrawerOpen)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: CurvedBottomBar(
-              selectedIndex: _selectedIndex,
-              onTap: _onBottomBarTap,
-              isDarkMode: isDarkMode,
-            ),
-          ),
-      ],
+    return ChangeNotifierProvider<HomeProvider>(
+      create: (_) => HomeProvider(),
+      child: Consumer3<HomeProvider, ThemeProvider, DrawerProvider>(
+        builder: (context, homeProvider, themeProvider, drawerProvider, _) {
+          final isDarkMode = themeProvider.isDarkMode;
+          final isDrawerOpen = drawerProvider.isDrawerOpen;
+          final bgColor = isDarkMode ? ThemeColors.darkBg : ThemeColors.lightBg;
+
+          return Stack(
+            children: [
+              Scaffold(
+                key: _scaffoldKey,
+                extendBodyBehindAppBar: true,
+                backgroundColor: bgColor,
+                appBar: AppBarWidget(
+                  notificationCount: notificationCount,
+                  onMenuTap: () => _toggleDrawer(context),
+                  onNotificationTap: () {},
+                ),
+                body: Padding(
+                  padding: EdgeInsets.only(
+                    top: kToolbarHeight + MediaQuery.of(context).padding.top,
+                    bottom: 0,
+                  ),
+                  child: _getScreenContent(context, homeProvider.selectedIndex),
+                ),
+              ),
+              DrawerMenu(
+                closeDrawer: () => _closeDrawer(context),
+                toggleDarkMode: () => _toggleDarkMode(context),
+                handleNavigation: (route) => _handleNavigation(context, route),
+                handleLogout: () => _handleLogout(context),
+                userName: 'Ahmad Hassan',
+                userEmail: 'ahmad@example.com',
+              ),
+              if (!isDrawerOpen)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: CurvedBottomBar(
+                    selectedIndex: homeProvider.selectedIndex,
+                    onTap: (index) => _onBottomBarTap(context, index),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

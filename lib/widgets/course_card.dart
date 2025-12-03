@@ -1,22 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 import 'package:rattil/models/package.dart';
+import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/utils/theme_colors.dart';
 
 class CourseCard extends StatelessWidget {
   final Package package;
-  final bool isDarkMode;
   final VoidCallback onViewDetails;
 
   const CourseCard({
     Key? key,
     required this.package,
-    required this.isDarkMode,
     required this.onViewDetails,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+    
     List<Color> gradient;
     switch (package.name) {
       case 'Premium Intensive':
