@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:rattil/models/package.dart';
 import 'package:rattil/providers/theme_provider.dart';
+import 'package:rattil/utils/theme_colors.dart';
 
 class PaymentConfirmationScreen extends StatelessWidget {
   final String userName;
@@ -36,16 +37,18 @@ class PaymentConfirmationScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
-    final cardBg = isDarkMode ? Color(0xFF1F2937) : Colors.white;
-    final textColor = isDarkMode ? Colors.white : Color(0xFF111827);
-    final subtitleColor = isDarkMode ? Color(0xFF9CA3AF) : Color(0xFF6B7280);
-    final tealDark = Color(0xFF0d9488);
+    final bgColor = isDarkMode ? ThemeColors.darkBg : ThemeColors.lightBg;
+    final cardColor = isDarkMode ? ThemeColors.darkCard : ThemeColors.lightCard;
+    final textColor = isDarkMode ? ThemeColors.darkText : ThemeColors.lightText;
+    final subtitleColor = isDarkMode ? ThemeColors.darkSubtitle : ThemeColors.lightSubtitle;
+    final tealDark = ThemeColors.primaryTealDark;
 
     return Scaffold(
-      backgroundColor: isDarkMode ? Color(0xFF111827) : Color(0xFFF9FAFB),
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: cardBg,
-        elevation: 2,
+        backgroundColor: cardColor,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
         title: Text('Confirm Payment', style: TextStyle(color: textColor)),
         iconTheme: IconThemeData(color: textColor),
       ),
@@ -68,7 +71,7 @@ class PaymentConfirmationScreen extends StatelessWidget {
                             radius: 24,
                             backgroundImage: userAvatarUrl != null ? NetworkImage(userAvatarUrl!) : null,
                             child: userAvatarUrl == null ? Icon(Icons.person, color: subtitleColor) : null,
-                            backgroundColor: cardBg,
+                            backgroundColor: cardColor,
                           ),
                           const SizedBox(width: 16),
                           Column(
@@ -84,7 +87,7 @@ class PaymentConfirmationScreen extends StatelessWidget {
                       // Card Info
                       Container(
                         decoration: BoxDecoration(
-                          color: cardBg,
+                          color: cardColor,
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6, offset: Offset(0, 2))],
                         ),
@@ -104,7 +107,7 @@ class PaymentConfirmationScreen extends StatelessWidget {
                       // Package Info
                       Container(
                         decoration: BoxDecoration(
-                          color: cardBg,
+                          color: cardColor,
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 6, offset: Offset(0, 2))],
                         ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:rattil/utils/app_colors.dart';
+import 'package:rattil/utils/theme_colors.dart';
 import 'package:rattil/widgets/custom_text_field.dart';
 import 'package:provider/provider.dart';
 import 'package:rattil/providers/auth_provider.dart' as my_auth;
@@ -21,6 +22,7 @@ class _SignInScreenState extends State<SignInScreen> {
 	final _formKey = GlobalKey<FormState>();
 	final _emailController = TextEditingController();
 	final _passwordController = TextEditingController();
+	bool _isPasswordVisible = false;
 
 	@override
 	void dispose() {
@@ -70,18 +72,95 @@ class _SignInScreenState extends State<SignInScreen> {
 		}
 	}
 
+	void _showForgotPasswordDialog(BuildContext context) {
+		final resetEmailController = TextEditingController();
+		final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+		final isDark = themeProvider.isDarkMode;
+		final bgColor = isDark ? ThemeColors.darkCard : ThemeColors.lightCard;
+		final textColor = isDark ? ThemeColors.darkText : ThemeColors.lightText;
+		final subtitleColor = isDark ? ThemeColors.darkSubtitle : ThemeColors.lightSubtitle;
+
+		showDialog(
+			context: context,
+			builder: (dialogContext) => AlertDialog(
+				backgroundColor: bgColor,
+				surfaceTintColor: Colors.transparent,
+				shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+				title: Text('Reset Password', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+				content: Column(
+					mainAxisSize: MainAxisSize.min,
+					children: [
+						Text(
+							'Enter your email address and we\'ll send you a link to reset your password.',
+							style: TextStyle(color: subtitleColor, fontSize: 14),
+						),
+						const SizedBox(height: 16),
+						TextField(
+							controller: resetEmailController,
+							keyboardType: TextInputType.emailAddress,
+							style: TextStyle(color: textColor),
+							decoration: InputDecoration(
+								hintText: 'Email Address',
+								hintStyle: TextStyle(color: subtitleColor),
+								filled: true,
+								fillColor: isDark ? Color(0xFF374151) : Color(0xFFF3F4F6),
+								border: OutlineInputBorder(
+									borderRadius: BorderRadius.circular(12),
+									borderSide: BorderSide.none,
+								),
+								prefixIcon: Icon(Icons.email, color: AppColors.teal500),
+							),
+						),
+					],
+				),
+				actions: [
+					TextButton(
+						onPressed: () => Navigator.pop(dialogContext),
+						child: Text('Cancel', style: TextStyle(color: subtitleColor)),
+					),
+					TextButton(
+						onPressed: () async {
+							if (resetEmailController.text.trim().isEmpty) {
+								ScaffoldMessenger.of(context).showSnackBar(
+									SnackBar(content: Text('Please enter your email'), backgroundColor: Colors.red),
+								);
+								return;
+							}
+							Navigator.pop(dialogContext);
+							
+							final authProvider = Provider.of<my_auth.AuthProvider>(context, listen: false);
+							final error = await authProvider.resetPassword(resetEmailController.text);
+							
+							if (error == null) {
+								ScaffoldMessenger.of(context).showSnackBar(
+									SnackBar(
+										content: Text('Password reset link sent to your email!'),
+										backgroundColor: ThemeColors.primaryTeal,
+									),
+								);
+							} else {
+								ScaffoldMessenger.of(context).showSnackBar(
+									SnackBar(content: Text(error), backgroundColor: Colors.red),
+								);
+							}
+						},
+						child: Text('Send Link', style: TextStyle(color: ThemeColors.primaryTeal, fontWeight: FontWeight.bold)),
+					),
+				],
+			),
+		);
+	}
+
 	@override
 	Widget build(BuildContext context) {
-		return ChangeNotifierProvider<ThemeProvider>(
-			create: (_) => ThemeProvider(),
-			child: Consumer<ThemeProvider>(
-				builder: (context, themeProvider, _) {
-					final isDark = themeProvider.isDarkMode;
-					final textColor = isDark ? Colors.white : Color(0xFF111827);
-					final subtitleColor = isDark ? Color(0xFF9CA3AF) : Color(0xFF4B5563);
+		final themeProvider = Provider.of<ThemeProvider>(context);
+		final isDark = themeProvider.isDarkMode;
+		final bgColor = isDark ? ThemeColors.darkBg : ThemeColors.lightBg;
+		final textColor = isDark ? ThemeColors.darkText : ThemeColors.lightText;
+		final subtitleColor = isDark ? ThemeColors.darkSubtitle : ThemeColors.lightSubtitle;
 
-					return Scaffold(
-						backgroundColor: AppColors.background,
+		return Scaffold(
+			backgroundColor: bgColor,
 						body: SafeArea(
 							child: GestureDetector(
 								onTap: () => FocusScope.of(context).unfocus(),
@@ -136,9 +215,11 @@ class _SignInScreenState extends State<SignInScreen> {
 															isPassword: true,
 															validator: _validatePassword,
 															prefixIcon: Icon(Icons.lock, color: AppColors.teal500),
-															isPasswordVisible: themeProvider.isDarkMode, // Example usage, you can add more state to ThemeProvider if needed
+															isPasswordVisible: _isPasswordVisible,
 															onTogglePassword: () {
-																themeProvider.toggleDarkMode(); // Example, you can add togglePasswordVisibility to ThemeProvider
+																setState(() {
+																	_isPasswordVisible = !_isPasswordVisible;
+																});
 															},
 														),
 														const SizedBox(height: 8),
@@ -146,7 +227,7 @@ class _SignInScreenState extends State<SignInScreen> {
 														Align(
 															alignment: Alignment.centerRight,
 															child: TextButton(
-																onPressed: () {},
+																onPressed: () => _showForgotPasswordDialog(context),
 																child: Text(
 																	'Forgot Password?',
 																	style: TextStyle(
@@ -190,17 +271,14 @@ class _SignInScreenState extends State<SignInScreen> {
 															),
 														),
 													),
-													], // End of Column children
-												), // End of Column
-											), // End of IntrinsicHeight
-										), // End of Form
-									), // End of Padding
-								), // End of SingleChildScrollView
-							), // End of GestureDetector
-						), // End of SafeArea
-					); // End of Scaffold
-				},
-			),
-		);
+									], // End of Column children
+								), // End of Column
+							), // End of IntrinsicHeight
+						), // End of Form
+					), // End of Padding
+				), // End of SingleChildScrollView
+			), // End of GestureDetector
+		), // End of SafeArea
+		); // End of Scaffold
 	}
 }

@@ -15,9 +15,19 @@ class CurvedBottomBar extends StatelessWidget {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
     debugPrint('CurvedBottomBar: selectedIndex=$selectedIndex, isDarkMode=$isDarkMode');
-    return Material(
-      type: MaterialType.transparency,
-      elevation: 0,
+    return Container(
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: isDarkMode 
+                ? Colors.black.withOpacity(0.25) 
+                : Colors.black.withOpacity(0.08),
+            blurRadius: 12,
+            spreadRadius: 0,
+            offset: const Offset(0, -3),
+          ),
+        ],
+      ),
       child: CurvedNavigationBar(
         index: selectedIndex,
         height: 72, // Increased height for more prominent curved bar
@@ -37,6 +47,7 @@ class CurvedBottomBar extends StatelessWidget {
                   color: Colors.teal,
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
+                  decoration: TextDecoration.none,
                 )),
               ],
             ],
@@ -51,6 +62,7 @@ class CurvedBottomBar extends StatelessWidget {
                   color: Colors.teal,
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
+                  decoration: TextDecoration.none,
                 )),
               ],
             ],
@@ -65,6 +77,7 @@ class CurvedBottomBar extends StatelessWidget {
                   color: Colors.teal,
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
+                  decoration: TextDecoration.none,
                 )),
               ],
             ],

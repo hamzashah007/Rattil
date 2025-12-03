@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:rattil/screens/auth/sign_in.dart';
+import 'package:rattil/screens/home_screen.dart';
 import 'dart:async';
 import 'package:rattil/utils/app_colors.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -83,11 +85,25 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Auto navigation after 2.5 seconds
     Future.delayed(const Duration(milliseconds: 2500), () {
+      _navigateBasedOnAuthState();
+    });
+  }
+
+  void _navigateBasedOnAuthState() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      // User is logged in, go to HomeScreen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => HomeScreen()),
+      );
+    } else {
+      // User is not logged in, go to SignInScreen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => SignInScreen()),
       );
-    });
+    }
   }
 
   @override

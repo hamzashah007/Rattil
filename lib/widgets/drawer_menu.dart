@@ -9,6 +9,7 @@ class DrawerMenu extends StatelessWidget {
   final VoidCallback toggleDarkMode;
   final Function(String route) handleNavigation;
   final VoidCallback handleLogout;
+  final VoidCallback? onProfileTap;
   final String userName;
   final String userEmail;
   final String? userAvatarUrl;
@@ -19,6 +20,7 @@ class DrawerMenu extends StatelessWidget {
     required this.toggleDarkMode,
     required this.handleNavigation,
     required this.handleLogout,
+    this.onProfileTap,
     required this.userName,
     required this.userEmail,
     this.userAvatarUrl,
@@ -81,76 +83,90 @@ class DrawerMenu extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Profile Section
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 32),
-                      padding: const EdgeInsets.only(bottom: 24),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(
-                            color: borderColor,
-                            width: 1,
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        closeDrawer();
+                        if (onProfileTap != null) {
+                          onProfileTap!();
+                        }
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 32),
+                        padding: const EdgeInsets.only(bottom: 24),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: borderColor,
+                              width: 1,
+                            ),
                           ),
                         ),
-                      ),
-                      child: Row(
-                        children: [
-                          userAvatarUrl != null && userAvatarUrl!.isNotEmpty
-                              ? CircleAvatar(
-                                  radius: 32,
-                                  backgroundImage: NetworkImage(userAvatarUrl!),
-                                )
-                              : Container(
-                                  width: 64,
-                                  height: 64,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [avatarGradientStart, avatarGradientEnd],
+                        child: Row(
+                          children: [
+                            userAvatarUrl != null && userAvatarUrl!.isNotEmpty
+                                ? CircleAvatar(
+                                    radius: 32,
+                                    backgroundImage: NetworkImage(userAvatarUrl!),
+                                  )
+                                : Container(
+                                    width: 64,
+                                    height: 64,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [avatarGradientStart, avatarGradientEnd],
+                                      ),
                                     ),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      userName.isNotEmpty ? userName[0].toUpperCase() : '',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.bold,
-                                        decoration: TextDecoration.none,
+                                    child: Center(
+                                      child: Text(
+                                        userName.isNotEmpty ? userName[0].toUpperCase() : '',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold,
+                                          decoration: TextDecoration.none,
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  userName,
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                    color: textColor,
-                                    decoration: TextDecoration.none,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    userName,
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                      color: textColor,
+                                      decoration: TextDecoration.none,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  userEmail,
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    color: subtextColor,
-                                    decoration: TextDecoration.none,
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    userEmail,
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      color: subtextColor,
+                                      decoration: TextDecoration.none,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
                                   ),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
+                            Icon(
+                              Icons.chevron_right,
+                              color: subtextColor,
+                              size: 24,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     // Menu Items

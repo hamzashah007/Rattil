@@ -31,6 +31,7 @@ class _EnrollNowScreenState extends State<EnrollNowScreen> {
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: cardColor,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text(
           'Make Payment',

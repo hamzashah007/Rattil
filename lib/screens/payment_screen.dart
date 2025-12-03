@@ -5,6 +5,7 @@ import 'package:rattil/models/package.dart';
 import 'package:rattil/providers/payment_provider.dart';
 import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/providers/drawer_provider.dart';
+import 'package:rattil/utils/theme_colors.dart';
 import 'package:rattil/screens/payment_success_screen.dart';
 import 'package:rattil/widgets/drawer_menu.dart';
 import 'package:rattil/screens/payment_confirmation_screen.dart';
@@ -148,7 +149,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   void showPaymentConfirmation(BuildContext context) {
     FocusScope.of(context).unfocus();
-    Navigator.push(
+    Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (context) => PaymentConfirmationScreen(
@@ -159,15 +160,18 @@ class _PaymentScreenState extends State<PaymentScreen> {
           cardholderName: _cardholderNameController.text,
           package: widget.selectedPackage,
           onConfirm: () {
-            Navigator.pop(context); // Close confirmation screen
-            processPayment(context);
+            Navigator.pop(context, true); // Return true if confirmed
           },
           onCancel: () {
-            Navigator.pop(context); // Close confirmation screen
+            Navigator.pop(context, false); // Return false if cancelled
           },
         ),
       ),
-    );
+    ).then((confirmed) {
+      if (confirmed == true) {
+        processPayment(context);
+      }
+    });
   }
 
   @override
@@ -177,8 +181,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
       child: Consumer3<PaymentProvider, ThemeProvider, DrawerProvider>(
         builder: (context, provider, themeProvider, drawerProvider, _) {
           final isDark = themeProvider.isDarkMode;
-          final bgColor = isDark ? Color(0xFF111827) : Color(0xFFF9FAFB);
-          final cardBg = isDark ? Color(0xFF1F2937) : Colors.white;
+          final bgColor = isDark ? ThemeColors.darkBg : ThemeColors.lightBg;
+          final cardColor = isDark ? ThemeColors.darkCard : ThemeColors.lightCard;
+          final cardBg = isDark ? ThemeColors.darkCard : ThemeColors.lightCard;
           final textColor = isDark ? Colors.white : Color(0xFF111827);
           final subtitleColor = isDark ? Color(0xFF9CA3AF) : Color(0xFF6B7280);
           final inputBg = isDark ? Color(0xFF374151) : Color(0xFFF3F4F6);
@@ -191,8 +196,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
               Scaffold(
                 backgroundColor: bgColor,
                 appBar: AppBar(
-                  backgroundColor: cardBg,
-                  elevation: 2,
+                  backgroundColor: cardColor,
+                  surfaceTintColor: Colors.transparent,
+                  elevation: 0,
                   titleSpacing: 0,
                   leading: IconButton(
                     icon: Icon(Icons.chevron_left, color: textColor, size: 40),

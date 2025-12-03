@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:rattil/providers/home_provider.dart';
 import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/providers/drawer_provider.dart';
+import 'package:rattil/providers/auth_provider.dart';
 import 'package:rattil/utils/theme_colors.dart';
 import 'package:rattil/widgets/app_bar_widget.dart';
 import 'package:rattil/widgets/quran_carousel.dart';
@@ -14,6 +16,11 @@ import 'package:rattil/screens/packages_screen.dart';
 import 'package:rattil/screens/profile_screen.dart';
 import 'package:rattil/screens/package_detail_screen.dart';
 import 'package:rattil/screens/transaction_history_screen.dart';
+import 'package:rattil/screens/notifications_screen.dart';
+import 'package:rattil/screens/auth/sign_in.dart';
+
+// Method channel for moving app to background
+const platform = MethodChannel('com.rattil.app/background');
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -26,6 +33,15 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final int notificationCount = 2;
 
+  @override
+  void initState() {
+    super.initState();
+    // Fetch user data when HomeScreen loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<AuthProvider>(context, listen: false).fetchUserData();
+    });
+  }
+
   void _onBottomBarTap(BuildContext context, int index) {
     final provider = Provider.of<HomeProvider>(context, listen: false);
     if (provider.selectedIndex == index) return;
@@ -37,6 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _getScreenContent(BuildContext context, int selectedIndex) {
+    final authProvider = Provider.of<AuthProvider>(context);
     if (selectedIndex == 0) {
       return SingleChildScrollView(
         child: Column(
@@ -70,9 +87,9 @@ class _HomeScreenState extends State<HomeScreen> {
       return PackagesScreen(showAppBar: false);
     } else {
       return ProfileScreen(
-        userName: 'Ahmad Hassan',
-        userEmail: 'ahmad@example.com',
-        userAvatarUrl: null,
+        userName: authProvider.userName ?? 'User',
+        userEmail: authProvider.userEmail ?? '',
+        userAvatarUrl: authProvider.userAvatarUrl,
       );
     }
   }
@@ -109,49 +126,96 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _handleLogout(BuildContext context) {
     _closeDrawer(context);
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pushReplacementNamed(context, '/signin');
-            },
-            child: const Text('Logout', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
+    
+    // Use Future.delayed to ensure drawer is closed before showing dialog
+    Future.delayed(Duration(milliseconds: 350), () {
+      final isDarkMode = Provider.of<ThemeProvider>(context, listen: false).isDarkMode;
+      final bgColor = isDarkMode ? ThemeColors.darkCard : ThemeColors.lightCard;
+      final textColor = isDarkMode ? ThemeColors.darkText : ThemeColors.lightText;
+      final subtitleColor = isDarkMode ? ThemeColors.darkSubtitle : ThemeColors.lightSubtitle;
+      
+      showDialog(
+        context: context,
+        barrierColor: Colors.black54,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: bgColor,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Logout', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+          content: Text('Are you sure you want to logout?', style: TextStyle(color: subtitleColor)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text('Cancel', style: TextStyle(color: ThemeColors.primaryTeal)),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(dialogContext);
+                await Provider.of<AuthProvider>(context, listen: false).signOut();
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => SignInScreen()),
+                );
+              },
+              child: const Text('Logout', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<HomeProvider>(
       create: (_) => HomeProvider(),
-      child: Consumer3<HomeProvider, ThemeProvider, DrawerProvider>(
-        builder: (context, homeProvider, themeProvider, drawerProvider, _) {
+      child: Consumer4<HomeProvider, ThemeProvider, DrawerProvider, AuthProvider>(
+        builder: (context, homeProvider, themeProvider, drawerProvider, authProvider, _) {
           final isDarkMode = themeProvider.isDarkMode;
           final isDrawerOpen = drawerProvider.isDrawerOpen;
           final bgColor = isDarkMode ? ThemeColors.darkBg : ThemeColors.lightBg;
 
-          return Stack(
-            children: [
-              Scaffold(
-                key: _scaffoldKey,
-                extendBodyBehindAppBar: true,
-                backgroundColor: bgColor,
-                appBar: AppBarWidget(
-                  notificationCount: notificationCount,
-                  onMenuTap: () => _toggleDrawer(context),
-                  onNotificationTap: () {},
-                ),
+          return PopScope(
+            canPop: false,
+            onPopInvokedWithResult: (didPop, result) async {
+              if (didPop) return;
+              
+              // If drawer is open, close it first
+              if (isDrawerOpen) {
+                drawerProvider.closeDrawer();
+                return;
+              }
+              
+              // If not on home tab, go to home tab first
+              if (homeProvider.selectedIndex != 0) {
+                homeProvider.setSelectedIndex(0);
+                return;
+              }
+              
+              // Move app to background
+              try {
+                await platform.invokeMethod('moveToBackground');
+              } catch (e) {
+                // Fallback: minimize using system navigator
+                SystemNavigator.pop();
+              }
+            },
+            child: Stack(
+              children: [
+                Scaffold(
+                  key: _scaffoldKey,
+                  extendBodyBehindAppBar: true,
+                  backgroundColor: bgColor,
+                  appBar: AppBarWidget(
+                    notificationCount: notificationCount,
+                    onMenuTap: () => _toggleDrawer(context),
+                    onNotificationTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => NotificationsScreen()),
+                      );
+                    },
+                  ),
                 body: Padding(
                   padding: EdgeInsets.only(
                     top: kToolbarHeight + MediaQuery.of(context).padding.top,
@@ -165,8 +229,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 toggleDarkMode: () => _toggleDarkMode(context),
                 handleNavigation: (route) => _handleNavigation(context, route),
                 handleLogout: () => _handleLogout(context),
-                userName: 'Ahmad Hassan',
-                userEmail: 'ahmad@example.com',
+                onProfileTap: () {
+                  // Navigate to profile tab after drawer closes
+                  Future.delayed(Duration(milliseconds: 350), () {
+                    homeProvider.setSelectedIndex(2);
+                  });
+                },
+                userName: authProvider.userName ?? 'User',
+                userEmail: authProvider.userEmail ?? '',
               ),
               if (!isDrawerOpen)
                 Positioned(
@@ -178,7 +248,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     onTap: (index) => _onBottomBarTap(context, index),
                   ),
                 ),
-            ],
+              ],
+            ),
           );
         },
       ),

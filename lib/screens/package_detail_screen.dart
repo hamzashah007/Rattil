@@ -14,10 +14,10 @@ class PackageDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDarkMode = context.watch<ThemeProvider>().isDarkMode;
     final bgColor = isDarkMode ? const Color(0xFF111827) : Colors.white;
+    final appBarColor = isDarkMode ? const Color(0xFF1F2937) : Colors.white;
     final textColor = isDarkMode ? Colors.white : const Color(0xFF111827);
     final subtitleColor = isDarkMode ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280);
     final detailBoxBg = isDarkMode ? const Color(0xFF374151) : const Color(0xFFF9FAFB);
-    final appBarColor = isDarkMode ? const Color(0xFF1F2937) : Colors.white;
     List<Color> gradient;
     switch (package.name) {
       case 'Premium Intensive':
@@ -160,7 +160,7 @@ class PackageDetailScreen extends StatelessWidget {
                 ],
               ),
             )),
-            // const SizedBox(height: 12),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(

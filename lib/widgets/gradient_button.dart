@@ -21,12 +21,12 @@ class GradientButton extends StatelessWidget {
         gradient: LinearGradient(
           colors: [Color(0xFF14b8a6), Color(0xFF0d9488)],
         ),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Color(0xFF14b8a6).withOpacity(0.3),
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 8,
-            offset: Offset(0, 4),
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -34,7 +34,7 @@ class GradientButton extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: isLoading ? null : onPressed,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           child: Center(
             child: isLoading
                 ? SizedBox(

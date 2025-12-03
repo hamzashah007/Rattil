@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:rattil/providers/theme_provider.dart';
+import 'package:rattil/utils/theme_colors.dart';
 
 class CustomTextField extends StatelessWidget {
   final String placeholder;
@@ -24,42 +27,54 @@ class CustomTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
+    final inputBg = isDark ? Color(0xFF374151) : Color(0xFFF3F4F6);
+    final textColor = isDark ? ThemeColors.darkText : ThemeColors.lightText;
+    final hintColor = isDark ? ThemeColors.darkSubtitle : ThemeColors.lightSubtitle;
+    
     return TextFormField(
       controller: controller,
       obscureText: isPassword && !isPasswordVisible,
       keyboardType: keyboardType,
       validator: validator,
+      style: TextStyle(color: textColor),
       decoration: InputDecoration(
         hintText: placeholder,
+        hintStyle: TextStyle(color: hintColor),
         filled: true,
-        fillColor: isDark ? Color(0xFF374151) : Color(0xFFF3F4F6),
+        fillColor: inputBg,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Color(0xFFD1D5DB)),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Color(0xFFD1D5DB)),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Color(0xFF14b8a6), width: 2),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: ThemeColors.primaryTeal, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Color(0xFFEF4444)),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Color(0xFFEF4444), width: 2),
         ),
         prefixIcon: prefixIcon,
         suffixIcon: isPassword
             ? IconButton(
                 icon: Icon(
                   isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                  color: hintColor,
                 ),
                 onPressed: onTogglePassword,
               )
             : null,
-        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:rattil/utils/app_colors.dart';
+import 'package:rattil/utils/theme_colors.dart';
 import 'package:rattil/widgets/custom_text_field.dart';
 import 'package:rattil/widgets/gradient_button.dart';
 import 'package:rattil/screens/home_screen.dart';
@@ -21,6 +22,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
 	final _emailController = TextEditingController();
 	final _passwordController = TextEditingController();
 	final _confirmPasswordController = TextEditingController();
+	
+	bool _isPasswordVisible = false;
+	bool _isConfirmPasswordVisible = false;
+	bool _acceptedTerms = false;
 
 	@override
 	void dispose() {
@@ -45,7 +50,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 		if (value == null || value.isEmpty) {
 			return 'Email is required';
 		}
-		final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}0$');
+		final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 		if (!emailRegex.hasMatch(value)) {
 			return 'Please enter a valid email';
 		}
@@ -97,17 +102,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
 	@override
 	Widget build(BuildContext context) {
-		return ChangeNotifierProvider<ThemeProvider>(
-			create: (_) => ThemeProvider(),
-			child: Consumer<ThemeProvider>(
-				builder: (context, themeProvider, _) {
-					final isDark = themeProvider.isDarkMode;
-					final textColor = isDark ? Colors.white : Color(0xFF111827);
-					final subtitleColor = isDark ? Color(0xFF9CA3AF) : Color(0xFF4B5563);
-					final isLoading = Provider.of<my_auth.AuthProvider>(context).isLoading;
+		final themeProvider = Provider.of<ThemeProvider>(context);
+		final isDark = themeProvider.isDarkMode;
+		final bgColor = isDark ? ThemeColors.darkBg : ThemeColors.lightBg;
+		final textColor = isDark ? ThemeColors.darkText : ThemeColors.lightText;
+		final subtitleColor = isDark ? ThemeColors.darkSubtitle : ThemeColors.lightSubtitle;
+		final isLoading = Provider.of<my_auth.AuthProvider>(context).isLoading;
 
-					return Scaffold(
-						backgroundColor: AppColors.background,
+		return Scaffold(
+			backgroundColor: bgColor,
 						body: SafeArea(
 							child: GestureDetector(
 								onTap: () => FocusScope.of(context).unfocus(),
@@ -172,9 +175,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
 														isPassword: true,
 														validator: _validatePassword,
 														prefixIcon: Icon(Icons.lock, color: AppColors.teal500),
-														isPasswordVisible: themeProvider.isDarkMode, // Example usage, you can add more state to ThemeProvider if needed
+														isPasswordVisible: _isPasswordVisible,
 														onTogglePassword: () {
-															themeProvider.toggleDarkMode(); // Example, you can add togglePasswordVisibility to ThemeProvider
+															setState(() {
+																_isPasswordVisible = !_isPasswordVisible;
+															});
 														},
 													),
 													const SizedBox(height: 16),
@@ -185,9 +190,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
 														isPassword: true,
 														validator: _validateConfirmPassword,
 														prefixIcon: Icon(Icons.lock, color: AppColors.teal500),
-														isPasswordVisible: themeProvider.isDarkMode, // Example usage, you can add more state to ThemeProvider if needed
+														isPasswordVisible: _isConfirmPasswordVisible,
 														onTogglePassword: () {
-															themeProvider.toggleDarkMode(); // Example, you can add togglePasswordVisibility to ThemeProvider
+															setState(() {
+																_isConfirmPasswordVisible = !_isConfirmPasswordVisible;
+															});
 														},
 													),
 													const SizedBox(height: 8),
@@ -195,9 +202,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
 													Row(
 														children: [
 															Checkbox(
-																value: themeProvider.isDarkMode, // Example usage, you can add acceptedTerms to ThemeProvider
+																value: _acceptedTerms,
 																onChanged: (val) {
-																	themeProvider.setDarkMode(val ?? false); // Example, you can add setAcceptedTerms to ThemeProvider
+																	setState(() {
+																		_acceptedTerms = val ?? false;
+																	});
 																},
 																activeColor: AppColors.teal500,
 															),
@@ -264,8 +273,5 @@ class _SignUpScreenState extends State<SignUpScreen> {
 							),
 						),
 					);
-				},
-			),
-		);
 	}
 }
