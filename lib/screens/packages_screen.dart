@@ -26,6 +26,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
   final String userName = 'John Doe';
   final String userEmail = 'john@example.com';
   final String? userAvatarUrl = null;
+  final String? userGender = null;
 
   void _onBottomBarTap(BuildContext context, int index) {
     final provider = Provider.of<PackagesProvider>(context, listen: false);
@@ -118,6 +119,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
         userName: userName,
         userEmail: userEmail,
         userAvatarUrl: userAvatarUrl,
+        userGender: userGender,
       );
     }
   }

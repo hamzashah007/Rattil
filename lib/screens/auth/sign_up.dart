@@ -4,7 +4,6 @@ import 'package:rattil/utils/app_colors.dart';
 import 'package:rattil/utils/theme_colors.dart';
 import 'package:rattil/widgets/custom_text_field.dart';
 import 'package:rattil/widgets/gradient_button.dart';
-import 'package:rattil/screens/home_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:rattil/providers/auth_provider.dart' as my_auth;
 import 'package:rattil/providers/theme_provider.dart';
@@ -26,6 +25,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 	bool _isPasswordVisible = false;
 	bool _isConfirmPasswordVisible = false;
 	bool _acceptedTerms = false;
+	String? _selectedGender;
 
 	@override
 	void dispose() {
@@ -82,20 +82,86 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
 	Future<void> _handleSignUp(BuildContext context) async {
 		if (_formKey.currentState!.validate()) {
+			// Check if gender is selected
+			if (_selectedGender == null) {
+				ScaffoldMessenger.of(context).showSnackBar(
+					SnackBar(
+						content: Row(
+							children: [
+								const Icon(Icons.error_outline, color: Colors.white),
+								const SizedBox(width: 12),
+								const Text('Please select your gender'),
+							],
+						),
+						backgroundColor: const Color(0xFFEF4444),
+						behavior: SnackBarBehavior.floating,
+						shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+						margin: const EdgeInsets.all(16),
+					),
+				);
+				return;
+			}
+			// Check if terms are accepted
+			if (!_acceptedTerms) {
+				ScaffoldMessenger.of(context).showSnackBar(
+					SnackBar(
+						content: Row(
+							children: [
+								const Icon(Icons.error_outline, color: Colors.white),
+								const SizedBox(width: 12),
+								const Expanded(child: Text('Please accept the Terms & Conditions')),
+							],
+						),
+						backgroundColor: const Color(0xFFEF4444),
+						behavior: SnackBarBehavior.floating,
+						shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+						margin: const EdgeInsets.all(16),
+					),
+				);
+				return;
+			}
 			final authProvider = Provider.of<my_auth.AuthProvider>(context, listen: false);
 			final error = await authProvider.signUp(
 				name: _nameController.text,
 				email: _emailController.text,
 				password: _passwordController.text,
+				gender: _selectedGender!,
 				context: context,
 			);
 			if (error == null && mounted) {
-				Navigator.pushReplacement(
-					context,
-					MaterialPageRoute(builder: (context) => HomeScreen()),
+				// Show success message and go back to sign in page
+				ScaffoldMessenger.of(context).showSnackBar(
+					SnackBar(
+						content: Row(
+							children: [
+								const Icon(Icons.check_circle_outline, color: Colors.white),
+								const SizedBox(width: 12),
+								const Expanded(child: Text('Account created successfully! Please sign in.')),
+							],
+						),
+						backgroundColor: AppColors.teal500,
+						behavior: SnackBarBehavior.floating,
+						shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+						margin: const EdgeInsets.all(16),
+					),
 				);
+				Navigator.pop(context);
 			} else if (error != null) {
-				ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+				ScaffoldMessenger.of(context).showSnackBar(
+					SnackBar(
+						content: Row(
+							children: [
+								const Icon(Icons.error_outline, color: Colors.white),
+								const SizedBox(width: 12),
+								Expanded(child: Text(error)),
+							],
+						),
+						backgroundColor: const Color(0xFFEF4444),
+						behavior: SnackBarBehavior.floating,
+						shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+						margin: const EdgeInsets.all(16),
+					),
+				);
 			}
 		}
 	}
@@ -111,6 +177,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
 		return Scaffold(
 			backgroundColor: bgColor,
+			resizeToAvoidBottomInset: true,
 						body: SafeArea(
 							child: GestureDetector(
 								onTap: () => FocusScope.of(context).unfocus(),
@@ -122,35 +189,35 @@ class _SignUpScreenState extends State<SignUpScreen> {
 											child: Column(
 												crossAxisAlignment: CrossAxisAlignment.center,
 												children: [
-													const SizedBox(height: 80),
+													const SizedBox(height: 70),
 													// Logo
 													SvgPicture.asset(
 														'assets/icon/app_icon.svg',
-														width: 80,
-														height: 80,
+														width: 60,
+														height: 60,
 														color: AppColors.teal500,
 													),
 													// Welcome text
 													Text(
 														'Create Account',
 														style: TextStyle(
-															fontSize: 30,
+															fontSize: 26,
 															fontWeight: FontWeight.bold,
 															color: textColor,
 														),
 													),
-													const SizedBox(height: 8),
+													const SizedBox(height: 4),
 													Center(
 														child: Text(
 															'Join us to start your Quran learning journey',
 															style: TextStyle(
-																fontSize: 16,
+																fontSize: 14,
 																color: subtitleColor,
 															),
 															textAlign: TextAlign.center,
 														),
 													),
-													const SizedBox(height: 48),
+													const SizedBox(height: 20),
 													// Name field
 													CustomTextField(
 														placeholder: 'Full Name',
@@ -158,7 +225,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 														validator: _validateName,
 														prefixIcon: Icon(Icons.person, color: AppColors.teal500),
 													),
-													const SizedBox(height: 16),
+													const SizedBox(height: 10),
 													// Email field
 													CustomTextField(
 														placeholder: 'Email Address',
@@ -167,7 +234,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 														validator: _validateEmail,
 														prefixIcon: Icon(Icons.email, color: AppColors.teal500),
 													),
-													const SizedBox(height: 16),
+													const SizedBox(height: 10),
 													// Password field
 													CustomTextField(
 														placeholder: 'Password',
@@ -182,7 +249,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 															});
 														},
 													),
-													const SizedBox(height: 16),
+													const SizedBox(height: 10),
 													// Confirm Password field
 													CustomTextField(
 														placeholder: 'Confirm Password',
@@ -197,7 +264,90 @@ class _SignUpScreenState extends State<SignUpScreen> {
 															});
 														},
 													),
-													const SizedBox(height: 8),
+													const SizedBox(height: 10),
+													// Gender dropdown
+													Container(
+														height: 56,
+														padding: const EdgeInsets.symmetric(horizontal: 16),
+														decoration: BoxDecoration(
+															color: isDark ? const Color(0xFF374151) : const Color(0xFFF3F4F6),
+															borderRadius: BorderRadius.circular(12),
+														),
+														child: DropdownButtonHideUnderline(
+															child: DropdownButton<String>(
+																value: _selectedGender,
+																hint: Row(
+																	children: [
+																		Icon(Icons.person_outline, color: AppColors.teal500),
+																		const SizedBox(width: 12),
+																		Text(
+																			'Select Gender',
+																			style: TextStyle(
+																				color: subtitleColor,
+																				fontSize: 16,
+																			),
+																		),
+																	],
+																),
+																icon: Icon(
+																	Icons.keyboard_arrow_down_rounded,
+																	color: subtitleColor,
+																),
+																isExpanded: true,
+																dropdownColor: isDark ? const Color(0xFF374151) : Colors.white,
+																borderRadius: BorderRadius.circular(12),
+																style: TextStyle(
+																	color: textColor,
+																	fontSize: 16,
+																),
+																items: [
+																	DropdownMenuItem(
+																		value: 'Male',
+																		child: Row(
+																			children: [
+																				Icon(Icons.male, color: AppColors.teal500, size: 20),
+																				const SizedBox(width: 12),
+																				Text('Male', style: TextStyle(color: textColor)),
+																			],
+																		),
+																	),
+																	DropdownMenuItem(
+																		value: 'Female',
+																		child: Row(
+																			children: [
+																				Icon(Icons.female, color: AppColors.teal500, size: 20),
+																				const SizedBox(width: 12),
+																				Text('Female', style: TextStyle(color: textColor)),
+																			],
+																		),
+																	),
+																],
+																selectedItemBuilder: (BuildContext context) {
+																	return ['Male', 'Female'].map<Widget>((String value) {
+																		return Row(
+																			children: [
+																				Icon(Icons.person_outline, color: AppColors.teal500),
+																				const SizedBox(width: 12),
+																				Text(
+																					value,
+																					style: TextStyle(
+																						color: textColor,
+																						fontSize: 16,
+																					),
+																				),
+																			],
+																		);
+																	}).toList();
+																},
+																onChanged: (value) {
+																	setState(() {
+																		_selectedGender = value;
+																	});
+																},
+															),
+														),
+													),
+													const SizedBox(height: 4),
 													// Terms & Conditions checkbox
 													Row(
 														children: [
@@ -234,14 +384,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
 															),
 														],
 													),
-													const SizedBox(height: 24),
+													const SizedBox(height: 10),
 													// Sign Up button
 													GradientButton(
 														text: 'Sign Up',
 														isLoading: isLoading,
 														onPressed: isLoading ? () {} : () => _handleSignUp(context),
 													),
-													const SizedBox(height: 24),
+													const SizedBox(height: 3),
 													// Sign In link
 													Center(
 														child: TextButton(

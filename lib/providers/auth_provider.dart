@@ -9,10 +9,12 @@ class AuthProvider extends ChangeNotifier {
   String? _userName;
   String? _userEmail;
   String? _userAvatarUrl;
+  String? _userGender;
 
   String? get userName => _userName;
   String? get userEmail => _userEmail;
   String? get userAvatarUrl => _userAvatarUrl;
+  String? get userGender => _userGender;
 
   User? get currentUser => FirebaseAuth.instance.currentUser;
 
@@ -29,6 +31,7 @@ class AuthProvider extends ChangeNotifier {
           _userName = doc.data()?['name'];
           _userEmail = doc.data()?['email'] ?? user.email;
           _userAvatarUrl = doc.data()?['avatarUrl'];
+          _userGender = doc.data()?['gender'];
         } else {
           // Document doesn't exist or name is null, create/update it
           _userName = user.displayName ?? user.email?.split('@')[0] ?? 'User';
@@ -57,6 +60,7 @@ class AuthProvider extends ChangeNotifier {
     required String name,
     required String email,
     required String password,
+    required String gender,
     required BuildContext context,
   }) async {
     _isLoading = true;
@@ -69,10 +73,12 @@ class AuthProvider extends ChangeNotifier {
       await FirebaseFirestore.instance.collection('users').doc(credential.user!.uid).set({
         'name': name.trim(),
         'email': email.trim(),
+        'gender': gender,
         'uid': credential.user!.uid,
         'createdAt': FieldValue.serverTimestamp(),
       });
-      await fetchUserData();
+      // Sign out after account creation so user has to sign in manually
+      await FirebaseAuth.instance.signOut();
       _isLoading = false;
       notifyListeners();
       return null;

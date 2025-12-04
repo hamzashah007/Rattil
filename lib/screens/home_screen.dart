@@ -90,6 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
         userName: authProvider.userName ?? 'User',
         userEmail: authProvider.userEmail ?? '',
         userAvatarUrl: authProvider.userAvatarUrl,
+        userGender: authProvider.userGender,
       );
     }
   }

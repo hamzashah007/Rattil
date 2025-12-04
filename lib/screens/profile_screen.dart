@@ -11,12 +11,14 @@ class ProfileScreen extends StatefulWidget {
   final String userName;
   final String userEmail;
   final String? userAvatarUrl;
+  final String? userGender;
 
   const ProfileScreen({
     Key? key,
     required this.userName,
     required this.userEmail,
     this.userAvatarUrl,
+    this.userGender,
   }) : super(key: key);
 
   @override
@@ -38,7 +40,6 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   
   bool _isLoading = false;
   bool _isPasswordLoading = false;
-  int? _selectedAvatarColor;
 
   // Avatar color options
   static const List<Color> avatarColors = [
@@ -57,9 +58,6 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   ];
 
   Color _getAvatarColor() {
-    if (_selectedAvatarColor != null) {
-      return avatarColors[_selectedAvatarColor!];
-    }
     // Generate consistent color based on user email
     final hash = widget.userEmail.hashCode.abs();
     return avatarColors[hash % avatarColors.length];
@@ -71,23 +69,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     _tabController = TabController(length: 2, vsync: this);
     _nameController.text = widget.userName;
     _emailController.text = widget.userEmail;
-    _loadAvatarColor();
-  }
-
-  Future<void> _loadAvatarColor() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      try {
-        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-        if (doc.exists && doc.data()?['avatarColorIndex'] != null) {
-          setState(() {
-            _selectedAvatarColor = doc.data()?['avatarColorIndex'];
-          });
-        }
-      } catch (e) {
-        // Use default color
-      }
-    }
+    _selectedGender = widget.userGender;
   }
 
   @override
@@ -133,101 +115,6 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     }
 
     setState(() => _isLoading = false);
-  }
-
-  Future<void> _changeAvatarColor(int colorIndex) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    try {
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-        'avatarColorIndex': colorIndex,
-      }, SetOptions(merge: true));
-
-      setState(() {
-        _selectedAvatarColor = colorIndex;
-      });
-
-      Navigator.pop(context); // Close bottom sheet
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Avatar color updated!'), backgroundColor: ThemeColors.primaryTeal),
-      );
-    } catch (e) {
-      print('Avatar color update error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update: ${e.toString()}'), backgroundColor: Colors.red),
-      );
-    }
-  }
-
-  void _showAvatarColorPicker() {
-    final textColor = Provider.of<ThemeProvider>(context, listen: false).isDarkMode 
-        ? ThemeColors.darkText 
-        : ThemeColors.lightText;
-    
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Provider.of<ThemeProvider>(context, listen: false).isDarkMode 
-          ? ThemeColors.darkCard 
-          : ThemeColors.lightCard,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Choose Avatar Color',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor),
-            ),
-            const SizedBox(height: 20),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: List.generate(avatarColors.length, (index) {
-                final isSelected = _selectedAvatarColor == index;
-                return GestureDetector(
-                  onTap: () => _changeAvatarColor(index),
-                  child: Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: avatarColors[index],
-                      shape: BoxShape.circle,
-                      border: isSelected 
-                          ? Border.all(color: Colors.white, width: 3)
-                          : null,
-                      boxShadow: isSelected ? [
-                        BoxShadow(
-                          color: avatarColors[index].withOpacity(0.5),
-                          blurRadius: 8,
-                          spreadRadius: 2,
-                        ),
-                      ] : null,
-                    ),
-                    child: Center(
-                      child: Text(
-                        widget.userName.isNotEmpty ? widget.userName[0].toUpperCase() : 'U',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 20,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }),
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
   }
 
   Future<void> _updatePassword() async {
@@ -300,10 +187,6 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       create: (_) => ProfileProvider(),
       child: Consumer<ProfileProvider>(
         builder: (context, provider, _) {
-          if (_selectedGender == null) {
-            _selectedGender = provider.selectedGender;
-          }
-          
           return Scaffold(
             backgroundColor: bgColor,
             body: _tabController == null
@@ -326,22 +209,6 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                                 fontSize: 32,
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: GestureDetector(
-                              onTap: _showAvatarColorPicker,
-                              child: Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: accentColor,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: bgColor, width: 2),
-                                ),
-                                child: Icon(Icons.palette, color: Colors.white, size: 16),
                               ),
                             ),
                           ),
