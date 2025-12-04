@@ -63,6 +63,27 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     return avatarColors[hash % avatarColors.length];
   }
 
+  void _showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              isError ? Icons.error_outline : Icons.check_circle_outline,
+              color: Colors.white,
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: isError ? const Color(0xFFEF4444) : ThemeColors.primaryTeal,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.only(left: 16, right: 16, bottom: 80),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -86,9 +107,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   Future<void> _updateProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('User not logged in'), backgroundColor: Colors.red),
-      );
+      _showSnackBar('User not logged in', isError: true);
       return;
     }
 
@@ -104,14 +123,10 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       // Refresh user data in AuthProvider
       await Provider.of<app_auth.AuthProvider>(context, listen: false).fetchUserData();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Profile updated successfully!'), backgroundColor: ThemeColors.primaryTeal),
-      );
+      _showSnackBar('Profile updated successfully!');
     } catch (e) {
       print('Profile update error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update: ${e.toString()}'), backgroundColor: Colors.red),
-      );
+      _showSnackBar('Failed to update: ${e.toString()}', isError: true);
     }
 
     setState(() => _isLoading = false);
@@ -122,16 +137,12 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     if (user == null) return;
 
     if (_newPasswordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Passwords do not match'), backgroundColor: Colors.red),
-      );
+      _showSnackBar('Passwords do not match', isError: true);
       return;
     }
 
     if (_newPasswordController.text.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Password must be at least 6 characters'), backgroundColor: Colors.red),
-      );
+      _showSnackBar('Password must be at least 6 characters', isError: true);
       return;
     }
 
@@ -152,21 +163,15 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       _newPasswordController.clear();
       _confirmPasswordController.clear();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Password updated successfully!'), backgroundColor: ThemeColors.primaryTeal),
-      );
+      _showSnackBar('Password updated successfully!');
     } on FirebaseAuthException catch (e) {
       String message = 'Failed to update password';
       if (e.code == 'wrong-password') {
         message = 'Current password is incorrect';
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: Colors.red),
-      );
+      _showSnackBar(message, isError: true);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update password'), backgroundColor: Colors.red),
-      );
+      _showSnackBar('Failed to update password', isError: true);
     }
 
     setState(() => _isPasswordLoading = false);
