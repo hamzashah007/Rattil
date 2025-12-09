@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:rattil/utils/app_colors.dart';
 import 'package:rattil/utils/theme_colors.dart';
@@ -8,6 +9,7 @@ import 'package:rattil/widgets/app_snackbar.dart';
 import 'package:provider/provider.dart';
 import 'package:rattil/providers/auth_provider.dart' as my_auth;
 import 'package:rattil/providers/theme_provider.dart';
+import 'package:rattil/screens/privacy_policy_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
 	const SignUpScreen({Key? key}) : super(key: key);
@@ -324,24 +326,39 @@ class _SignUpScreenState extends State<SignUpScreen> {
 																activeColor: AppColors.teal500,
 															),
 															Expanded(
-																child: GestureDetector(
-																	onTap: () {
-																		// TODO: Show terms
-																	},
-																	child: RichText(
-																		text: TextSpan(
-																			text: 'I agree to the ',
-																			style: TextStyle(color: subtitleColor, fontSize: 14),
-																			children: [
-																				TextSpan(
-																					text: 'Terms & Conditions',
-																					style: TextStyle(
-																						color: AppColors.teal700,
-																						fontWeight: FontWeight.bold,
-																					),
+																child: RichText(
+																	text: TextSpan(
+																		text: 'I agree to the ',
+																		style: TextStyle(color: subtitleColor, fontSize: 14),
+																		children: [
+																			TextSpan(
+																				text: 'Terms & Conditions',
+																				style: TextStyle(
+																					color: AppColors.teal700,
+																					fontWeight: FontWeight.bold,
 																				),
-																			],
-																		),
+																			),
+																			TextSpan(
+																				text: ' and ',
+																				style: TextStyle(color: subtitleColor, fontSize: 14),
+																			),
+																			TextSpan(
+																				text: 'Privacy Policy',
+																				style: TextStyle(
+																					color: AppColors.teal700,
+																					fontWeight: FontWeight.bold,
+																				),
+																				recognizer: TapGestureRecognizer()
+																					..onTap = () {
+																						Navigator.push(
+																							context,
+																							MaterialPageRoute(
+																								builder: (context) => const PrivacyPolicyScreen(),
+																							),
+																						);
+																					},
+																			),
+																		],
 																	),
 																),
 															),
