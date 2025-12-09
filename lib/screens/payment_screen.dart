@@ -6,6 +6,7 @@ import 'package:rattil/providers/payment_provider.dart';
 import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/providers/drawer_provider.dart';
 import 'package:rattil/utils/theme_colors.dart';
+import 'package:rattil/widgets/app_snackbar.dart';
 import 'package:rattil/screens/payment_success_screen.dart';
 import 'package:rattil/widgets/drawer_menu.dart';
 import 'package:rattil/screens/payment_confirmation_screen.dart';
@@ -134,17 +135,47 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Future<void> processPayment(BuildContext context) async {
     final provider = Provider.of<PaymentProvider>(context, listen: false);
     provider.setProcessing(true);
-    await Future.delayed(const Duration(seconds: 2)); // Simulate API call
-    provider.setProcessing(false);
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => PaymentSuccessScreen(
-          transactionId: 'TXN123456',
-          package: widget.selectedPackage,
+    
+    try {
+      // Simulate API call - replace with actual payment processing
+      await Future.delayed(const Duration(seconds: 2));
+      
+      // Simulate random payment failure for testing (remove in production)
+      // final random = DateTime.now().millisecond % 10;
+      // if (random < 2) {
+      //   throw Exception('Payment declined by bank');
+      // }
+      
+      provider.setProcessing(false);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => PaymentSuccessScreen(
+            transactionId: 'TXN123456',
+            package: widget.selectedPackage,
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      provider.setProcessing(false);
+      
+      // Show appropriate error message
+      if (e.toString().contains('declined') || e.toString().contains('insufficient')) {
+        AppSnackbar.showError(
+          context,
+          title: 'Payment Declined',
+          message: 'Your payment was declined. Please check your card details or try a different card.',
+        );
+      } else if (e.toString().contains('network') || e.toString().contains('connection')) {
+        AppSnackbar.showNetworkError(context, onRetry: () => processPayment(context));
+      } else {
+        AppSnackbar.showError(
+          context,
+          title: 'Payment Failed',
+          message: 'We couldn\'t process your payment. Please try again later.',
+        );
+      }
+    }
   }
 
   void showPaymentConfirmation(BuildContext context) {

@@ -4,6 +4,8 @@ import 'package:rattil/providers/profile_provider.dart';
 import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/providers/auth_provider.dart' as app_auth;
 import 'package:rattil/utils/theme_colors.dart';
+import 'package:rattil/utils/error_handler.dart';
+import 'package:rattil/widgets/app_snackbar.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -63,25 +65,12 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     return avatarColors[hash % avatarColors.length];
   }
 
-  void _showSnackBar(String message, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              isError ? Icons.error_outline : Icons.check_circle_outline,
-              color: Colors.white,
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: isError ? const Color(0xFFEF4444) : ThemeColors.primaryTeal,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.only(left: 16, right: 16, bottom: 80),
-      ),
-    );
+  void _showSnackBar(String message, {bool isError = false, String? title}) {
+    if (isError) {
+      AppSnackbar.showError(context, message: message, title: title);
+    } else {
+      AppSnackbar.showSuccess(context, message: message, title: title);
+    }
   }
 
   @override
@@ -107,7 +96,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   Future<void> _updateProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      _showSnackBar('User not logged in', isError: true);
+      _showSnackBar('Please sign in to update your profile', isError: true, title: 'Not Signed In');
       return;
     }
 
@@ -123,10 +112,18 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       // Refresh user data in AuthProvider
       await Provider.of<app_auth.AuthProvider>(context, listen: false).fetchUserData();
 
-      _showSnackBar('Profile updated successfully!');
+      _showSnackBar('Your profile has been updated successfully!', title: 'Profile Updated');
+    } on FirebaseException catch (e) {
+      print('Profile update error: $e');
+      final errorResult = ErrorHandler.handleAuthError(e);
+      _showSnackBar(errorResult.message, isError: true, title: errorResult.title);
     } catch (e) {
       print('Profile update error: $e');
-      _showSnackBar('Failed to update: ${e.toString()}', isError: true);
+      if (ErrorHandler.isNetworkError(e)) {
+        _showSnackBar('Please check your internet connection and try again.', isError: true, title: 'Connection Error');
+      } else {
+        _showSnackBar('An unexpected error occurred. Please try again.', isError: true, title: 'Update Failed');
+      }
     }
 
     setState(() => _isLoading = false);
@@ -134,15 +131,18 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
 
   Future<void> _updatePassword() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      _showSnackBar('Please sign in to change your password', isError: true, title: 'Not Signed In');
+      return;
+    }
 
     if (_newPasswordController.text != _confirmPasswordController.text) {
-      _showSnackBar('Passwords do not match', isError: true);
+      _showSnackBar('The passwords you entered do not match. Please try again.', isError: true, title: 'Passwords Don\'t Match');
       return;
     }
 
     if (_newPasswordController.text.length < 6) {
-      _showSnackBar('Password must be at least 6 characters', isError: true);
+      _showSnackBar('Your new password must be at least 6 characters long.', isError: true, title: 'Password Too Short');
       return;
     }
 
@@ -163,15 +163,16 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       _newPasswordController.clear();
       _confirmPasswordController.clear();
 
-      _showSnackBar('Password updated successfully!');
+      _showSnackBar('Your password has been changed successfully!', title: 'Password Updated');
     } on FirebaseAuthException catch (e) {
-      String message = 'Failed to update password';
-      if (e.code == 'wrong-password') {
-        message = 'Current password is incorrect';
-      }
-      _showSnackBar(message, isError: true);
+      final errorResult = ErrorHandler.handleAuthError(e);
+      _showSnackBar(errorResult.message, isError: true, title: errorResult.title);
     } catch (e) {
-      _showSnackBar('Failed to update password', isError: true);
+      if (ErrorHandler.isNetworkError(e)) {
+        _showSnackBar('Please check your internet connection and try again.', isError: true, title: 'Connection Error');
+      } else {
+        _showSnackBar('Failed to update password. Please try again.', isError: true, title: 'Update Failed');
+      }
     }
 
     setState(() => _isPasswordLoading = false);

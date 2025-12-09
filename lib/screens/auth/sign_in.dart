@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:rattil/utils/app_colors.dart';
 import 'package:rattil/utils/theme_colors.dart';
 import 'package:rattil/widgets/custom_text_field.dart';
+import 'package:rattil/widgets/app_snackbar.dart';
 import 'package:provider/provider.dart';
 import 'package:rattil/providers/auth_provider.dart' as my_auth;
 import 'package:rattil/providers/theme_provider.dart';
@@ -66,8 +67,25 @@ class _SignInScreenState extends State<SignInScreen> {
 					context,
 					MaterialPageRoute(builder: (context) => HomeScreen()),
 				);
-			} else if (error != null) {
-				ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+			} else if (error != null && mounted) {
+				// Use the enhanced error result for better user feedback
+				final errorResult = authProvider.lastError;
+				if (errorResult != null) {
+					AppSnackbar.showErrorResult(
+						context,
+						errorResult: errorResult,
+						onAction: errorResult.actionText == 'Forgot Password?'
+							? () => _showForgotPasswordDialog(context)
+							: errorResult.actionText == 'Sign Up'
+								? () => Navigator.push(
+									context,
+									MaterialPageRoute(builder: (context) => SignUpScreen()),
+								)
+								: null,
+					);
+				} else {
+					AppSnackbar.showError(context, message: error);
+				}
 			}
 		}
 	}
@@ -121,9 +139,7 @@ class _SignInScreenState extends State<SignInScreen> {
 					TextButton(
 						onPressed: () async {
 							if (resetEmailController.text.trim().isEmpty) {
-								ScaffoldMessenger.of(context).showSnackBar(
-									SnackBar(content: Text('Please enter your email'), backgroundColor: Colors.red),
-								);
+								AppSnackbar.showError(context, message: 'Please enter your email address');
 								return;
 							}
 							Navigator.pop(dialogContext);
@@ -132,16 +148,18 @@ class _SignInScreenState extends State<SignInScreen> {
 							final error = await authProvider.resetPassword(resetEmailController.text);
 							
 							if (error == null) {
-								ScaffoldMessenger.of(context).showSnackBar(
-									SnackBar(
-										content: Text('Password reset link sent to your email!'),
-										backgroundColor: ThemeColors.primaryTeal,
-									),
+								AppSnackbar.showSuccess(
+									context,
+									title: 'Email Sent!',
+									message: 'Password reset link has been sent to your email.',
 								);
 							} else {
-								ScaffoldMessenger.of(context).showSnackBar(
-									SnackBar(content: Text(error), backgroundColor: Colors.red),
-								);
+								final errorResult = authProvider.lastError;
+								if (errorResult != null) {
+									AppSnackbar.showErrorResult(context, errorResult: errorResult);
+								} else {
+									AppSnackbar.showError(context, message: error);
+								}
 							}
 						},
 						child: Text('Send Link', style: TextStyle(color: ThemeColors.primaryTeal, fontWeight: FontWeight.bold)),

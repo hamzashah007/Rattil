@@ -1,10 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:rattil/utils/error_handler.dart';
 
 class AuthProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+
+  // Store the last error for UI access
+  ErrorResult? _lastError;
+  ErrorResult? get lastError => _lastError;
+
+  void clearError() {
+    _lastError = null;
+    notifyListeners();
+  }
 
   String? _userName;
   String? _userEmail;
@@ -64,7 +74,9 @@ class AuthProvider extends ChangeNotifier {
     required BuildContext context,
   }) async {
     _isLoading = true;
+    _lastError = null;
     notifyListeners();
+    
     try {
       final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email.trim(),
@@ -84,17 +96,16 @@ class AuthProvider extends ChangeNotifier {
       return null;
     } on FirebaseAuthException catch (e) {
       _isLoading = false;
+      _lastError = ErrorHandler.handleAuthError(e);
       notifyListeners();
       print('FirebaseAuthException: ${e.code} - ${e.message}');
-      if (e.code == 'email-already-in-use') return 'Email already in use.';
-      if (e.code == 'weak-password') return 'Password is too weak.';
-      if (e.code == 'invalid-email') return 'Invalid email address.';
-      return e.message ?? 'Sign up failed';
+      return _lastError!.message;
     } catch (e) {
       _isLoading = false;
+      _lastError = ErrorHandler.handleAuthError(e);
       notifyListeners();
       print('SignUp Error: $e');
-      return 'Sign up failed: ${e.toString()}';
+      return _lastError!.message;
     }
   }
 
@@ -104,7 +115,9 @@ class AuthProvider extends ChangeNotifier {
     required BuildContext context,
   }) async {
     _isLoading = true;
+    _lastError = null;
     notifyListeners();
+    
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email.trim(),
@@ -116,14 +129,16 @@ class AuthProvider extends ChangeNotifier {
       return null;
     } on FirebaseAuthException catch (e) {
       _isLoading = false;
+      _lastError = ErrorHandler.handleAuthError(e);
       notifyListeners();
-      if (e.code == 'user-not-found') return 'No user found for that email.';
-      if (e.code == 'wrong-password') return 'Wrong password provided.';
-      return e.message ?? 'Sign in failed';
+      print('FirebaseAuthException: ${e.code} - ${e.message}');
+      return _lastError!.message;
     } catch (e) {
       _isLoading = false;
+      _lastError = ErrorHandler.handleAuthError(e);
       notifyListeners();
-      return 'Sign in failed';
+      print('SignIn Error: $e');
+      return _lastError!.message;
     }
   }
 
@@ -137,15 +152,18 @@ class AuthProvider extends ChangeNotifier {
 
   // Forgot Password - sends reset email
   Future<String?> resetPassword(String email) async {
+    _lastError = null;
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email.trim());
       return null; // Success
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found') return 'No user found with this email.';
-      if (e.code == 'invalid-email') return 'Invalid email address.';
-      return e.message ?? 'Failed to send reset email';
+      _lastError = ErrorHandler.handleAuthError(e);
+      notifyListeners();
+      return _lastError!.message;
     } catch (e) {
-      return 'Failed to send reset email';
+      _lastError = ErrorHandler.handleAuthError(e);
+      notifyListeners();
+      return _lastError!.message;
     }
   }
 }

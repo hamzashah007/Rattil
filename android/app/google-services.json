@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:21739793114:android:8b4e9b252a7050e21653e3",
+        "mobilesdk_app_id": "1:21739793114:android:c1630edda15a7bcf1653e3",
         "android_client_info": {
-          "package_name": "com.example.rattil"
+          "package_name": "com.hexait.rattil"
         }
       },
       "oauth_client": [],

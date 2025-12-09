@@ -4,6 +4,7 @@ import 'package:rattil/utils/app_colors.dart';
 import 'package:rattil/utils/theme_colors.dart';
 import 'package:rattil/widgets/custom_text_field.dart';
 import 'package:rattil/widgets/gradient_button.dart';
+import 'package:rattil/widgets/app_snackbar.dart';
 import 'package:provider/provider.dart';
 import 'package:rattil/providers/auth_provider.dart' as my_auth;
 import 'package:rattil/providers/theme_provider.dart';
@@ -84,39 +85,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
 		if (_formKey.currentState!.validate()) {
 			// Check if gender is selected
 			if (_selectedGender == null) {
-				ScaffoldMessenger.of(context).showSnackBar(
-					SnackBar(
-						content: Row(
-							children: [
-								const Icon(Icons.error_outline, color: Colors.white),
-								const SizedBox(width: 12),
-								const Text('Please select your gender'),
-							],
-						),
-						backgroundColor: const Color(0xFFEF4444),
-						behavior: SnackBarBehavior.floating,
-						shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-						margin: const EdgeInsets.all(16),
-					),
+				AppSnackbar.showWarning(
+					context,
+					title: 'Gender Required',
+					message: 'Please select your gender to continue.',
 				);
 				return;
 			}
 			// Check if terms are accepted
 			if (!_acceptedTerms) {
-				ScaffoldMessenger.of(context).showSnackBar(
-					SnackBar(
-						content: Row(
-							children: [
-								const Icon(Icons.error_outline, color: Colors.white),
-								const SizedBox(width: 12),
-								const Expanded(child: Text('Please accept the Terms & Conditions')),
-							],
-						),
-						backgroundColor: const Color(0xFFEF4444),
-						behavior: SnackBarBehavior.floating,
-						shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-						margin: const EdgeInsets.all(16),
-					),
+				AppSnackbar.showWarning(
+					context,
+					title: 'Terms Required',
+					message: 'Please accept the Terms & Conditions to create your account.',
 				);
 				return;
 			}
@@ -130,38 +111,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
 			);
 			if (error == null && mounted) {
 				// Show success message and go back to sign in page
-				ScaffoldMessenger.of(context).showSnackBar(
-					SnackBar(
-						content: Row(
-							children: [
-								const Icon(Icons.check_circle_outline, color: Colors.white),
-								const SizedBox(width: 12),
-								const Expanded(child: Text('Account created successfully! Please sign in.')),
-							],
-						),
-						backgroundColor: AppColors.teal500,
-						behavior: SnackBarBehavior.floating,
-						shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-						margin: const EdgeInsets.all(16),
-					),
+				AppSnackbar.showSuccess(
+					context,
+					title: 'Account Created!',
+					message: 'Your account has been created successfully. Please sign in.',
 				);
 				Navigator.pop(context);
-			} else if (error != null) {
-				ScaffoldMessenger.of(context).showSnackBar(
-					SnackBar(
-						content: Row(
-							children: [
-								const Icon(Icons.error_outline, color: Colors.white),
-								const SizedBox(width: 12),
-								Expanded(child: Text(error)),
-							],
-						),
-						backgroundColor: const Color(0xFFEF4444),
-						behavior: SnackBarBehavior.floating,
-						shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-						margin: const EdgeInsets.all(16),
-					),
-				);
+			} else if (error != null && mounted) {
+				// Use the enhanced error result for better user feedback
+				final errorResult = authProvider.lastError;
+				if (errorResult != null) {
+					AppSnackbar.showErrorResult(context, errorResult: errorResult);
+				} else {
+					AppSnackbar.showError(context, message: error);
+				}
 			}
 		}
 	}

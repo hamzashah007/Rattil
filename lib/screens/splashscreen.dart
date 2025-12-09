@@ -74,22 +74,30 @@ class _SplashScreenState extends State<SplashScreen>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    // Start animations with stagger
-    _logoController.forward();
-    Future.delayed(const Duration(milliseconds: 400), () {
-      _titleController.forward();
-    });
-    Future.delayed(const Duration(milliseconds: 600), () {
-      _subtitleController.forward();
-    });
+    // Start animations with stagger after frame is rendered
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      
+      _logoController.forward();
+      Future.delayed(const Duration(milliseconds: 400), () {
+        if (mounted) _titleController.forward();
+      });
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (mounted) _subtitleController.forward();
+      });
 
-    // Auto navigation after 2.5 seconds
-    Future.delayed(const Duration(milliseconds: 2500), () {
-      _navigateBasedOnAuthState();
+      // Auto navigation after 3 seconds (longer for iOS)
+      Future.delayed(const Duration(milliseconds: 3000), () {
+        if (mounted) {
+          _navigateBasedOnAuthState();
+        }
+      });
     });
   }
 
   void _navigateBasedOnAuthState() {
+    if (!mounted) return;
+    
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       // User is logged in, go to HomeScreen
@@ -101,7 +109,7 @@ class _SplashScreenState extends State<SplashScreen>
       // User is not logged in, go to SignInScreen
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => SignInScreen()),
+        MaterialPageRoute(builder: (context) => const SignInScreen()),
       );
     }
   }
@@ -123,6 +131,7 @@ class _SplashScreenState extends State<SplashScreen>
     final tealLight = AppColors.tealLight;
 
     return Scaffold(
+      backgroundColor: teal500,
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -147,7 +156,7 @@ class _SplashScreenState extends State<SplashScreen>
                       'assets/icon/app_icon.svg',
                       width: 150,
                       height: 150,
-                      color: white, // Tint icon white
+                      colorFilter: ColorFilter.mode(white, BlendMode.srcIn),
                     ),
                   ),
                 ),
