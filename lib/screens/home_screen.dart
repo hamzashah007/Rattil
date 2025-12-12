@@ -89,7 +89,6 @@ class _HomeScreenState extends State<HomeScreen> {
       return ProfileScreen(
         userName: authProvider.userName ?? 'User',
         userEmail: authProvider.userEmail ?? '',
-        userAvatarUrl: authProvider.userAvatarUrl,
         userGender: authProvider.userGender,
       );
     }

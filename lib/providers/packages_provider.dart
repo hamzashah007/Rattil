@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:rattil/utils/error_handler.dart';
 
 class PackagesProvider extends ChangeNotifier {
   int _selectedIndex = 1;
+
+  String? errorMessage;
+  void setError(dynamic error) {
+    errorMessage = ErrorHandler.getSimpleMessage(error);
+    notifyListeners();
+  }
 
   int get selectedIndex => _selectedIndex;
 
@@ -9,6 +16,4 @@ class PackagesProvider extends ChangeNotifier {
     _selectedIndex = index;
     notifyListeners();
   }
-
-  // Add more state and methods as needed for your packages screen
 }

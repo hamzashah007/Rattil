@@ -231,7 +231,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 																		Icon(Icons.person_outline, color: AppColors.teal500),
 																		const SizedBox(width: 12),
 																		Text(
-																			'Select Gender (Optional)',
+																			'Gender (Optional)',
 																			style: TextStyle(
 																				color: subtitleColor,
 																				fontSize: 16,

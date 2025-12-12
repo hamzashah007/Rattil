@@ -199,10 +199,9 @@ class ErrorHandler {
       case 'permission-denied':
         return ErrorResult(
           title: 'Access Denied',
-          message: 'You don\'t have permission to perform this action.',
+          message: "You don't have permission to perform this action.\nDetails: ${error.message ?? error.toString()}",
           type: ErrorType.permission,
         );
-      
       case 'unavailable':
         return ErrorResult(
           title: 'Service Unavailable',
@@ -210,25 +209,24 @@ class ErrorHandler {
           type: ErrorType.server,
           actionText: 'Retry',
         );
-      
       case 'not-found':
         return ErrorResult(
           title: 'Not Found',
           message: 'The requested resource was not found.',
           type: ErrorType.notFound,
         );
-      
       case 'cancelled':
         return ErrorResult(
           title: 'Operation Cancelled',
           message: 'The operation was cancelled.',
           type: ErrorType.unknown,
         );
-      
       default:
         return ErrorResult(
           title: 'Error',
-          message: error.message ?? 'An error occurred. Please try again.',
+          message: (error.message != null && error.message!.isNotEmpty)
+              ? 'An error occurred: ${error.message}'
+              : 'An error occurred. Details: ${error.toString()}',
           type: ErrorType.unknown,
         );
     }

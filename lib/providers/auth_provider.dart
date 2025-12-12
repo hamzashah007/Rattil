@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-// import 'package:firebase_auth/firebase_auth.dart';
-// import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:rattil/utils/firestore_helpers.dart';
+import 'package:rattil/utils/error_handler.dart';
 
 class AuthProvider extends ChangeNotifier {
   bool _isLoading = false;
@@ -8,28 +10,15 @@ class AuthProvider extends ChangeNotifier {
 
   String? _userName;
   String? _userEmail;
-  String? _userAvatarUrl;
-  String? _userGender;
+  String? _userGender; // Optional
 
   String? get userName => _userName;
   String? get userEmail => _userEmail;
-  String? get userAvatarUrl => _userAvatarUrl;
   String? get userGender => _userGender;
 
-  // FIREBASE DISABLED
-  // User? get currentUser => FirebaseAuth.instance.currentUser;
-  dynamic get currentUser => null;
+  User? get currentUser => FirebaseAuth.instance.currentUser;
 
-  // Fetch user data from Firestore - DISABLED
   Future<void> fetchUserData() async {
-    // FIREBASE DISABLED - Using mock data
-    _userName = 'Test User';
-    _userEmail = 'test@example.com';
-    _userAvatarUrl = null;
-    _userGender = null;
-    notifyListeners();
-    
-    /* FIREBASE CODE COMMENTED OUT
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       try {
@@ -40,14 +29,11 @@ class AuthProvider extends ChangeNotifier {
         if (doc.exists && doc.data()?['name'] != null) {
           _userName = doc.data()?['name'];
           _userEmail = doc.data()?['email'] ?? user.email;
-          _userAvatarUrl = doc.data()?['avatarUrl'];
           _userGender = doc.data()?['gender'];
         } else {
           // Document doesn't exist or name is null, create/update it
           _userName = user.displayName ?? user.email?.split('@')[0] ?? 'User';
           _userEmail = user.email;
-          _userAvatarUrl = user.photoURL;
-          
           // Create document if it doesn't exist
           await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
             'name': _userName,
@@ -60,35 +46,20 @@ class AuthProvider extends ChangeNotifier {
         print('Error fetching user data: $e');
         _userName = user.displayName ?? user.email?.split('@')[0] ?? 'User';
         _userEmail = user.email;
-        _userAvatarUrl = user.photoURL;
       }
       notifyListeners();
     }
-    */
   }
 
   Future<String?> signUp({
     required String name,
     required String email,
     required String password,
-    String? gender,
+    String? gender, // Optional
     required BuildContext context,
   }) async {
-    // FIREBASE DISABLED - Mock sign up
     _isLoading = true;
     notifyListeners();
-    
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
-    
-    _userName = name;
-    _userEmail = email;
-    _userGender = gender;
-    _isLoading = false;
-    notifyListeners();
-    return null; // Success
-    
-    /* FIREBASE CODE COMMENTED OUT
     try {
       final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email.trim(),
@@ -109,18 +80,19 @@ class AuthProvider extends ChangeNotifier {
     } on FirebaseAuthException catch (e) {
       _isLoading = false;
       notifyListeners();
-      print('FirebaseAuthException: ${e.code} - ${e.message}');
-      if (e.code == 'email-already-in-use') return 'Email already in use.';
-      if (e.code == 'weak-password') return 'Password is too weak.';
-      if (e.code == 'invalid-email') return 'Invalid email address.';
-      return e.message ?? 'Sign up failed';
+      final friendly = ErrorHandler.handleAuthError(e);
+      return friendly.message;
+    } on FirebaseException catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      final friendly = ErrorHandler.handleAuthError(e);
+      return friendly.message;
     } catch (e) {
       _isLoading = false;
       notifyListeners();
-      print('SignUp Error: $e');
-      return 'Sign up failed: ${e.toString()}';
+      final friendly = ErrorHandler.handleAuthError(e);
+      return friendly.message;
     }
-    */
   }
 
   Future<String?> signIn({
@@ -128,21 +100,8 @@ class AuthProvider extends ChangeNotifier {
     required String password,
     required BuildContext context,
   }) async {
-    // FIREBASE DISABLED - Mock sign in
     _isLoading = true;
     notifyListeners();
-    
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
-    
-    _userName = email.split('@')[0];
-    _userEmail = email;
-    await fetchUserData();
-    _isLoading = false;
-    notifyListeners();
-    return null; // Success
-    
-    /* FIREBASE CODE COMMENTED OUT
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email.trim(),
@@ -155,43 +114,101 @@ class AuthProvider extends ChangeNotifier {
     } on FirebaseAuthException catch (e) {
       _isLoading = false;
       notifyListeners();
-      if (e.code == 'user-not-found') return 'No user found for that email.';
-      if (e.code == 'wrong-password') return 'Wrong password provided.';
-      return e.message ?? 'Sign in failed';
+      final friendly = ErrorHandler.handleAuthError(e);
+      return friendly.message;
+    } on FirebaseException catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      final friendly = ErrorHandler.handleAuthError(e);
+      return friendly.message;
     } catch (e) {
       _isLoading = false;
       notifyListeners();
-      return 'Sign in failed';
+      final friendly = ErrorHandler.handleAuthError(e);
+      return friendly.message;
     }
-    */
   }
 
   Future<void> signOut() async {
-    // FIREBASE DISABLED
-    // await FirebaseAuth.instance.signOut();
+    await FirebaseAuth.instance.signOut();
     _userName = null;
     _userEmail = null;
-    _userAvatarUrl = null;
     notifyListeners();
   }
 
-  // Forgot Password - sends reset email
   Future<String?> resetPassword(String email) async {
-    // FIREBASE DISABLED - Mock password reset
-    await Future.delayed(const Duration(seconds: 1));
-    return null; // Success
-    
-    /* FIREBASE CODE COMMENTED OUT
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email.trim());
       return null; // Success
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found') return 'No user found with this email.';
-      if (e.code == 'invalid-email') return 'Invalid email address.';
-      return e.message ?? 'Failed to send reset email';
+      final friendly = ErrorHandler.handleAuthError(e);
+      return friendly.message;
+    } on FirebaseException catch (e) {
+      final friendly = ErrorHandler.handleAuthError(e);
+      return friendly.message;
     } catch (e) {
-      return 'Failed to send reset email';
+      final friendly = ErrorHandler.handleAuthError(e);
+      return friendly.message;
     }
-    */
+  }
+
+  /// Deletes the user account and anonymizes all related data (transactions only)
+  Future<String?> deleteAccount({
+    required String password,
+    required BuildContext context,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return 'No user is currently signed in.';
+    _isLoading = true;
+    notifyListeners();
+    try {
+      // 1. Re-authenticate user
+      final cred = EmailAuthProvider.credential(email: user.email!, password: password);
+      await user.reauthenticateWithCredential(cred);
+
+      // 2. Delete user profile from Firestore
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).delete();
+
+      // 3. Anonymize all transactions for this user
+      final transactions = await FirebaseFirestore.instance
+          .collection('transactions')
+          .where('userId', isEqualTo: user.uid)
+          .get();
+      for (final doc in transactions.docs) {
+        await doc.reference.update({
+          'userId': 'DELETED_USER',
+          'userEmail': 'deleted@account.com',
+          'userName': 'Deleted User',
+          'isAnonymized': true,
+          'deletedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      // 5. Delete Firebase Auth account
+      await user.delete();
+
+      // 6. Clear local state
+      _userName = null;
+      _userEmail = null;
+      _userGender = null;
+      _isLoading = false;
+      notifyListeners();
+      return null;
+    } on FirebaseAuthException catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      final friendly = ErrorHandler.handleAuthError(e);
+      return friendly.message;
+    } on FirebaseException catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      final friendly = ErrorHandler.handleAuthError(e);
+      return friendly.message;
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      final friendly = ErrorHandler.handleAuthError(e);
+      return friendly.message;
+    }
   }
 }

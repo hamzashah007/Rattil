@@ -4,8 +4,10 @@ import 'package:rattil/providers/profile_provider.dart';
 import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/providers/auth_provider.dart' as app_auth;
 import 'package:rattil/utils/theme_colors.dart';
-// import 'package:firebase_auth/firebase_auth.dart';
-// import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:rattil/screens/auth/sign_in.dart';
+import 'package:rattil/widgets/app_snackbar.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userName;
@@ -40,6 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   
   bool _isLoading = false;
   bool _isPasswordLoading = false;
+  bool _isDeleteLoading = false;
 
   // Avatar color options
   static const List<Color> avatarColors = [
@@ -88,8 +91,10 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _nameController.text = widget.userName;
-    _emailController.text = widget.userEmail;
+    // Fetch user data from provider if available
+    final userProvider = Provider.of<app_auth.AuthProvider>(context, listen: false);
+    _nameController.text = userProvider.userName ?? widget.userName;
+    _emailController.text = userProvider.userEmail ?? widget.userEmail;
     _selectedGender = widget.userGender;
   }
 
@@ -105,25 +110,6 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   }
 
   Future<void> _updateProfile() async {
-    // FIREBASE DISABLED - Mock update profile
-    setState(() => _isLoading = true);
-
-    try {
-      // Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
-
-      // Refresh user data in AuthProvider
-      await Provider.of<app_auth.AuthProvider>(context, listen: false).fetchUserData();
-
-      _showSnackBar('Profile updated successfully!');
-    } catch (e) {
-      print('Profile update error: $e');
-      _showSnackBar('Failed to update: ${e.toString()}', isError: true);
-    }
-
-    setState(() => _isLoading = false);
-    
-    /* FIREBASE CODE COMMENTED OUT
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       _showSnackBar('User not logged in', isError: true);
@@ -145,43 +131,13 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       _showSnackBar('Profile updated successfully!');
     } catch (e) {
       print('Profile update error: $e');
-      _showSnackBar('Failed to update: ${e.toString()}', isError: true);
+      _showSnackBar('Failed to update: e.toString()', isError: true);
     }
 
     setState(() => _isLoading = false);
-    */
   }
 
   Future<void> _updatePassword() async {
-    // FIREBASE DISABLED - Mock update password
-    if (_newPasswordController.text != _confirmPasswordController.text) {
-      _showSnackBar('Passwords do not match', isError: true);
-      return;
-    }
-
-    if (_newPasswordController.text.length < 6) {
-      _showSnackBar('Password must be at least 6 characters', isError: true);
-      return;
-    }
-
-    setState(() => _isPasswordLoading = true);
-
-    try {
-      // Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
-
-      _currentPasswordController.clear();
-      _newPasswordController.clear();
-      _confirmPasswordController.clear();
-
-      _showSnackBar('Password updated successfully!');
-    } catch (e) {
-      _showSnackBar('Failed to update password', isError: true);
-    }
-
-    setState(() => _isPasswordLoading = false);
-    
-    /* FIREBASE CODE COMMENTED OUT
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
@@ -224,7 +180,115 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     }
 
     setState(() => _isPasswordLoading = false);
-    */
+  }
+
+  Future<void> _deleteAccount() async {
+    final password = _currentPasswordController.text.trim();
+    if (password.isEmpty) {
+      _showSnackBar('Please enter your password to confirm.', isError: true);
+      return;
+    }
+    setState(() => _isDeleteLoading = true);
+    final authProvider = Provider.of<app_auth.AuthProvider>(context, listen: false);
+    try {
+      final result = await authProvider.deleteAccount(password: password, context: context);
+      if (result == null) {
+        _currentPasswordController.clear();
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const SignInScreen()),
+          (route) => false,
+        );
+        // Show snackbar after navigation
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          AppSnackbar.showError(
+            context,
+            message: 'Your account has been deleted.',
+          );
+        });
+      } else {
+        print('Account deletion error: ' + result.toString());
+        _showSnackBar(result, isError: true);
+      }
+    } catch (e, stack) {
+      print('Account deletion exception: ' + e.toString());
+      print(stack);
+      _showSnackBar('Account deletion failed: ${e.toString()}', isError: true);
+    }
+    setState(() => _isDeleteLoading = false);
+  }
+
+  void _showDeleteAccountDialog() {
+    _currentPasswordController.clear(); // Always clear password field when opening dialog
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+    final dialogBgColor = isDarkMode ? ThemeColors.darkCard : ThemeColors.lightCard;
+    final textColor = isDarkMode ? ThemeColors.darkText : ThemeColors.lightText;
+    final subtextColor = isDarkMode ? ThemeColors.darkSubtitle : ThemeColors.lightSubtitle;
+    final accentColor = ThemeColors.primaryTeal;
+    final inputBg = isDarkMode ? Color(0xFF374151) : Color(0xFFF3F4F6);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: dialogBgColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Delete Account', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Are you sure you want to delete your account? This action cannot be undone. All your profile data will be deleted and your transaction history will be anonymized for legal compliance.',
+                  style: TextStyle(color: textColor, fontSize: 15),
+                ),
+                const SizedBox(height: 18),
+                TextField(
+                  controller: _currentPasswordController,
+                  obscureText: true,
+                  style: TextStyle(color: textColor),
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    labelStyle: TextStyle(color: subtextColor),
+                    hintText: 'Enter your password to confirm',
+                    hintStyle: TextStyle(color: subtextColor),
+                    filled: true,
+                    fillColor: inputBg,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: accentColor, width: 2),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                _currentPasswordController.clear(); // Clear on cancel
+                Navigator.of(context).pop();
+              },
+              child: Text('Cancel', style: TextStyle(color: accentColor, fontWeight: FontWeight.bold)),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _deleteAccount();
+              },
+              child: Text('Delete', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -340,7 +404,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                               enabled: false,
                               style: TextStyle(color: subtextColor),
                               decoration: InputDecoration(
-                                hintText: 'Email cannot be changed',
+                                hintText: '', // Remove placeholder
                                 hintStyle: TextStyle(color: subtextColor),
                                 filled: true,
                                 fillColor: inputBg.withOpacity(0.5),
@@ -443,7 +507,52 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 32),
+                            const SizedBox(height: 16),
+                            // Delete Account Button
+                            SizedBox(
+                              width: double.infinity,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: _isDeleteLoading ? null : _showDeleteAccountDialog,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(colors: [Color(0xFFEF4444), Color(0xFFDC2626)]),
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.10),
+                                        blurRadius: 10,
+                                        offset: Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      if (_isDeleteLoading)
+                                        SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                        )
+                                      else
+                                        Text(
+                                          'Delete Account',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 48), // Increased padding below Delete Account button
+                            // Add extra padding to avoid overlap with navbar
+                            SizedBox(height: 32),
                           ],
                         ),
                       ),
