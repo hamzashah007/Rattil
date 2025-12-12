@@ -1,20 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:rattil/utils/error_handler.dart';
+// import 'package:firebase_auth/firebase_auth.dart';
+// import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthProvider extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
-
-  // Store the last error for UI access
-  ErrorResult? _lastError;
-  ErrorResult? get lastError => _lastError;
-
-  void clearError() {
-    _lastError = null;
-    notifyListeners();
-  }
 
   String? _userName;
   String? _userEmail;
@@ -26,10 +16,20 @@ class AuthProvider extends ChangeNotifier {
   String? get userAvatarUrl => _userAvatarUrl;
   String? get userGender => _userGender;
 
-  User? get currentUser => FirebaseAuth.instance.currentUser;
+  // FIREBASE DISABLED
+  // User? get currentUser => FirebaseAuth.instance.currentUser;
+  dynamic get currentUser => null;
 
-  // Fetch user data from Firestore
+  // Fetch user data from Firestore - DISABLED
   Future<void> fetchUserData() async {
+    // FIREBASE DISABLED - Using mock data
+    _userName = 'Test User';
+    _userEmail = 'test@example.com';
+    _userAvatarUrl = null;
+    _userGender = null;
+    notifyListeners();
+    
+    /* FIREBASE CODE COMMENTED OUT
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       try {
@@ -64,19 +64,31 @@ class AuthProvider extends ChangeNotifier {
       }
       notifyListeners();
     }
+    */
   }
 
   Future<String?> signUp({
     required String name,
     required String email,
     required String password,
-    required String gender,
+    String? gender,
     required BuildContext context,
   }) async {
+    // FIREBASE DISABLED - Mock sign up
     _isLoading = true;
-    _lastError = null;
     notifyListeners();
     
+    // Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+    
+    _userName = name;
+    _userEmail = email;
+    _userGender = gender;
+    _isLoading = false;
+    notifyListeners();
+    return null; // Success
+    
+    /* FIREBASE CODE COMMENTED OUT
     try {
       final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email.trim(),
@@ -96,17 +108,19 @@ class AuthProvider extends ChangeNotifier {
       return null;
     } on FirebaseAuthException catch (e) {
       _isLoading = false;
-      _lastError = ErrorHandler.handleAuthError(e);
       notifyListeners();
       print('FirebaseAuthException: ${e.code} - ${e.message}');
-      return _lastError!.message;
+      if (e.code == 'email-already-in-use') return 'Email already in use.';
+      if (e.code == 'weak-password') return 'Password is too weak.';
+      if (e.code == 'invalid-email') return 'Invalid email address.';
+      return e.message ?? 'Sign up failed';
     } catch (e) {
       _isLoading = false;
-      _lastError = ErrorHandler.handleAuthError(e);
       notifyListeners();
       print('SignUp Error: $e');
-      return _lastError!.message;
+      return 'Sign up failed: ${e.toString()}';
     }
+    */
   }
 
   Future<String?> signIn({
@@ -114,10 +128,21 @@ class AuthProvider extends ChangeNotifier {
     required String password,
     required BuildContext context,
   }) async {
+    // FIREBASE DISABLED - Mock sign in
     _isLoading = true;
-    _lastError = null;
     notifyListeners();
     
+    // Simulate network delay
+    await Future.delayed(const Duration(seconds: 1));
+    
+    _userName = email.split('@')[0];
+    _userEmail = email;
+    await fetchUserData();
+    _isLoading = false;
+    notifyListeners();
+    return null; // Success
+    
+    /* FIREBASE CODE COMMENTED OUT
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email.trim(),
@@ -129,21 +154,21 @@ class AuthProvider extends ChangeNotifier {
       return null;
     } on FirebaseAuthException catch (e) {
       _isLoading = false;
-      _lastError = ErrorHandler.handleAuthError(e);
       notifyListeners();
-      print('FirebaseAuthException: ${e.code} - ${e.message}');
-      return _lastError!.message;
+      if (e.code == 'user-not-found') return 'No user found for that email.';
+      if (e.code == 'wrong-password') return 'Wrong password provided.';
+      return e.message ?? 'Sign in failed';
     } catch (e) {
       _isLoading = false;
-      _lastError = ErrorHandler.handleAuthError(e);
       notifyListeners();
-      print('SignIn Error: $e');
-      return _lastError!.message;
+      return 'Sign in failed';
     }
+    */
   }
 
   Future<void> signOut() async {
-    await FirebaseAuth.instance.signOut();
+    // FIREBASE DISABLED
+    // await FirebaseAuth.instance.signOut();
     _userName = null;
     _userEmail = null;
     _userAvatarUrl = null;
@@ -152,18 +177,21 @@ class AuthProvider extends ChangeNotifier {
 
   // Forgot Password - sends reset email
   Future<String?> resetPassword(String email) async {
-    _lastError = null;
+    // FIREBASE DISABLED - Mock password reset
+    await Future.delayed(const Duration(seconds: 1));
+    return null; // Success
+    
+    /* FIREBASE CODE COMMENTED OUT
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email.trim());
       return null; // Success
     } on FirebaseAuthException catch (e) {
-      _lastError = ErrorHandler.handleAuthError(e);
-      notifyListeners();
-      return _lastError!.message;
+      if (e.code == 'user-not-found') return 'No user found with this email.';
+      if (e.code == 'invalid-email') return 'Invalid email address.';
+      return e.message ?? 'Failed to send reset email';
     } catch (e) {
-      _lastError = ErrorHandler.handleAuthError(e);
-      notifyListeners();
-      return _lastError!.message;
+      return 'Failed to send reset email';
     }
+    */
   }
 }

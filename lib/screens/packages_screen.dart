@@ -5,12 +5,13 @@ import 'package:rattil/providers/packages_provider.dart';
 import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/providers/drawer_provider.dart';
 import 'package:rattil/utils/constants.dart';
-import 'package:rattil/widgets/package_card.dart';
 import 'package:rattil/widgets/app_bar_widget.dart';
 import 'package:rattil/widgets/curved_bottom_bar.dart';
 import 'package:rattil/widgets/drawer_menu.dart';
+import 'package:rattil/widgets/package_card.dart';
 import 'package:rattil/screens/profile_screen.dart';
-import 'package:rattil/screens/enroll_now_screen.dart';
+import 'package:rattil/providers/auth_provider.dart';
+import 'package:rattil/providers/iap_provider.dart';
 
 class PackagesScreen extends StatefulWidget {
   final bool showAppBar;
@@ -23,10 +24,7 @@ class PackagesScreen extends StatefulWidget {
 class _PackagesScreenState extends State<PackagesScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final int notificationCount = 2;
-  final String userName = 'John Doe';
-  final String userEmail = 'john@example.com';
-  final String? userAvatarUrl = null;
-  final String? userGender = null;
+  int _purchasingIndex = -1;
 
   void _onBottomBarTap(BuildContext context, int index) {
     final provider = Provider.of<PackagesProvider>(context, listen: false);
@@ -67,8 +65,9 @@ class _PackagesScreenState extends State<PackagesScreen> {
   Widget _getScreenContent(BuildContext context) {
     final provider = Provider.of<PackagesProvider>(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final authProvider = Provider.of<AuthProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
-    
+
     debugPrint('PackagesScreen: Showing tab index: ${provider.selectedIndex}');
     if (provider.selectedIndex == 0) {
       return Center(child: Text('Home Screen', style: TextStyle(fontSize: 32)));
@@ -100,14 +99,15 @@ class _PackagesScreenState extends State<PackagesScreen> {
                 return PackageCard(
                   package: pkg,
                   delay: index * 100,
-                  onEnroll: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => EnrollNowScreen(package: pkg),
-                      ),
-                    );
-                  },
+                  onEnroll: _purchasingIndex == index
+                      ? null
+                      : () async {
+                          setState(() => _purchasingIndex = index);
+                          await Future.delayed(Duration(milliseconds: 2500));
+                          // IAP purchase logic removed, now handled globally in SplashScreen
+                          setState(() => _purchasingIndex = -1);
+                        },
+                  isLoading: _purchasingIndex == index,
                 );
               },
             ),
@@ -116,23 +116,24 @@ class _PackagesScreenState extends State<PackagesScreen> {
       );
     } else {
       return ProfileScreen(
-        userName: userName,
-        userEmail: userEmail,
-        userAvatarUrl: userAvatarUrl,
-        userGender: userGender,
+        userName: authProvider.userName ?? '',
+        userEmail: authProvider.userEmail ?? '',
+        userAvatarUrl: authProvider.userAvatarUrl,
+        userGender: authProvider.userGender,
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
     return ChangeNotifierProvider<PackagesProvider>(
       create: (_) => PackagesProvider(),
-      child: Consumer3<PackagesProvider, ThemeProvider, DrawerProvider>(
-        builder: (context, provider, themeProvider, drawerProvider, _) {
+      child: Consumer4<PackagesProvider, ThemeProvider, DrawerProvider, IAPProvider>(
+        builder: (context, provider, themeProvider, drawerProvider, iapProvider, _) {
           final isDarkMode = themeProvider.isDarkMode;
           final isDrawerOpen = drawerProvider.isDrawerOpen;
-          
+
           return Stack(
             children: [
               Scaffold(
@@ -155,9 +156,9 @@ class _PackagesScreenState extends State<PackagesScreen> {
                 toggleDarkMode: () => _toggleDarkMode(context),
                 handleNavigation: (route) => _handleNavigation(context, route),
                 handleLogout: () => _handleLogout(context),
-                userName: userName,
-                userEmail: userEmail,
-                userAvatarUrl: userAvatarUrl,
+                userName: authProvider.userName ?? '',
+                userEmail: authProvider.userEmail ?? '',
+                userAvatarUrl: authProvider.userAvatarUrl,
               ),
               if (!isDrawerOpen)
                 Positioned(

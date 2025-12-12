@@ -68,24 +68,7 @@ class _SignInScreenState extends State<SignInScreen> {
 					MaterialPageRoute(builder: (context) => HomeScreen()),
 				);
 			} else if (error != null && mounted) {
-				// Use the enhanced error result for better user feedback
-				final errorResult = authProvider.lastError;
-				if (errorResult != null) {
-					AppSnackbar.showErrorResult(
-						context,
-						errorResult: errorResult,
-						onAction: errorResult.actionText == 'Forgot Password?'
-							? () => _showForgotPasswordDialog(context)
-							: errorResult.actionText == 'Sign Up'
-								? () => Navigator.push(
-									context,
-									MaterialPageRoute(builder: (context) => SignUpScreen()),
-								)
-								: null,
-					);
-				} else {
-					AppSnackbar.showError(context, message: error);
-				}
+				AppSnackbar.showError(context, message: error);
 			}
 		}
 	}
@@ -143,10 +126,8 @@ class _SignInScreenState extends State<SignInScreen> {
 								return;
 							}
 							Navigator.pop(dialogContext);
-							
 							final authProvider = Provider.of<my_auth.AuthProvider>(context, listen: false);
 							final error = await authProvider.resetPassword(resetEmailController.text);
-							
 							if (error == null) {
 								AppSnackbar.showSuccess(
 									context,
@@ -154,12 +135,7 @@ class _SignInScreenState extends State<SignInScreen> {
 									message: 'Password reset link has been sent to your email.',
 								);
 							} else {
-								final errorResult = authProvider.lastError;
-								if (errorResult != null) {
-									AppSnackbar.showErrorResult(context, errorResult: errorResult);
-								} else {
-									AppSnackbar.showError(context, message: error);
-								}
+								AppSnackbar.showError(context, message: error);
 							}
 						},
 						child: Text('Send Link', style: TextStyle(color: ThemeColors.primaryTeal, fontWeight: FontWeight.bold)),

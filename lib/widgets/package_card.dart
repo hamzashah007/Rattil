@@ -9,7 +9,8 @@ class PackageCard extends StatefulWidget {
   final Package package;
   final int delay;
   final VoidCallback? onEnroll;
-  const PackageCard({Key? key, required this.package, required this.delay, this.onEnroll}) : super(key: key);
+  final bool isLoading;
+  const PackageCard({Key? key, required this.package, required this.delay, this.onEnroll, this.isLoading = false}) : super(key: key);
 
   @override
   State<PackageCard> createState() => _PackageCardState();
@@ -266,7 +267,7 @@ class _PackageCardState extends State<PackageCard> with SingleTickerProviderStat
                             width: double.infinity,
                             child: InkWell(
                               borderRadius: BorderRadius.circular(12),
-                              onTap: widget.onEnroll,
+                              onTap: widget.isLoading ? null : widget.onEnroll,
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 200),
                                 curve: Curves.ease,
@@ -285,7 +286,16 @@ class _PackageCardState extends State<PackageCard> with SingleTickerProviderStat
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Text('Enroll Now', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                                    widget.isLoading
+                                        ? SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              color: Colors.white,
+                                              strokeWidth: 2.5,
+                                            ),
+                                          )
+                                        : Text('Subscribe', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                                     const SizedBox(width: 8),
                                     Icon(Icons.chevron_right, color: Colors.white, size: 20),
                                   ],

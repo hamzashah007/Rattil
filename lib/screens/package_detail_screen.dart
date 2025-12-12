@@ -3,12 +3,26 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:rattil/models/package.dart';
 import 'package:rattil/providers/theme_provider.dart';
-import 'package:rattil/screens/enroll_now_screen.dart';
 import 'package:rattil/screens/trial_request_success_screen.dart';
+import 'package:rattil/providers/iap_provider.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 
-class PackageDetailScreen extends StatelessWidget {
+class PackageDetailScreen extends StatefulWidget {
   final Package package;
   const PackageDetailScreen({Key? key, required this.package}) : super(key: key);
+
+  @override
+  State<PackageDetailScreen> createState() => _PackageDetailScreenState();
+}
+
+class _PackageDetailScreenState extends State<PackageDetailScreen> {
+  bool _isPurchasing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Remove IAP fetch logic from here, now handled globally in SplashScreen
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +33,7 @@ class PackageDetailScreen extends StatelessWidget {
     final subtitleColor = isDarkMode ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280);
     final detailBoxBg = isDarkMode ? const Color(0xFF374151) : const Color(0xFFF9FAFB);
     List<Color> gradient;
-    switch (package.name) {
+    switch (widget.package.name) {
       case 'Premium Intensive':
         gradient = [Color(0xFFFFE0B2), Color(0xFFFFA726)]; // Soft Orange to Amber
         break;
@@ -30,7 +44,7 @@ class PackageDetailScreen extends StatelessWidget {
         gradient = [Color(0xFFA5D6A7), Color(0xFF388E3C)]; // Light Green to Deep Green
         break;
       default:
-        gradient = [Color(package.colorGradientStart), Color(package.colorGradientEnd)]; // Fallback
+        gradient = [Color(widget.package.colorGradientStart), Color(widget.package.colorGradientEnd)]; // Fallback
     }
 
     return Scaffold(
@@ -94,9 +108,9 @@ class PackageDetailScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            Text(package.name, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: textColor)),
+            Text(widget.package.name, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: textColor)),
             const SizedBox(height: 8),
-            Text('\$${package.price} / month', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF009688), fontFamily: 'Roboto', fontStyle: FontStyle.normal)),
+            Text('\$${widget.package.price} / month', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF009688), fontFamily: 'Roboto', fontStyle: FontStyle.normal)),
             const SizedBox(height: 16),
             Container(
               decoration: BoxDecoration(
@@ -115,7 +129,7 @@ class PackageDetailScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Duration', style: TextStyle(fontSize: 12, color: subtitleColor)),
-                          Text(package.duration, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
+                          Text(widget.package.duration, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
                         ],
                       ),
                     ],
@@ -129,7 +143,7 @@ class PackageDetailScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Session Time', style: TextStyle(fontSize: 12, color: subtitleColor)),
-                          Text(package.time, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
+                          Text(widget.package.time, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
                         ],
                       ),
                     ],
@@ -140,7 +154,7 @@ class PackageDetailScreen extends StatelessWidget {
             const SizedBox(height: 24),
             Text("What's Included:", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
             const SizedBox(height: 12),
-            ...package.features.map((feature) => Padding(
+            ...widget.package.features.map((feature) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
                 children: [
@@ -161,88 +175,112 @@ class PackageDetailScreen extends StatelessWidget {
               ),
             )),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => EnrollNowScreen(package: package),
+            SizedBox(
+              width: double.infinity,
+              child: Consumer<IAPProvider>(
+                builder: (context, iapProvider, _) {
+                  final isLoading = iapProvider.products.isEmpty;
+                  ProductDetails? product;
+                  try {
+                    product = iapProvider.products.firstWhere(
+                      (p) => p.id == widget.package.id.toString().padLeft(2, '0'),
+                    );
+                  } catch (e) {
+                    product = null;
+                  }
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: _isPurchasing || isLoading
+                        ? null
+                        : () async {
+                            if (product != null) {
+                              setState(() => _isPurchasing = true);
+                              await Future.delayed(Duration(milliseconds: 2500));
+                              iapProvider.buy(product);
+                              setState(() => _isPurchasing = false);
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Subscription product not found.')),
+                              );
+                            }
+                          },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.ease,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(colors: [Color(0xFF14b8a6), Color(0xFF0d9488)]),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.12),
+                            blurRadius: 12,
+                            offset: Offset(0, 2),
                           ),
-                        );
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.ease,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(colors: [Color(0xFF14b8a6), Color(0xFF0d9488)]),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.10),
-                              blurRadius: 10,
-                              offset: Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text('Enroll Now', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                          ],
-                        ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _isPurchasing || isLoading
+                              ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2.5,
+                                  ),
+                                )
+                              : Text('Subscribe', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                          const SizedBox(width: 8),
+                          Icon(Icons.chevron_right, color: Colors.white, size: 20),
+                        ],
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => TrialRequestSuccessScreen(
-                              package: package,
-                            ),
-                          ),
-                        );
-                      },
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.ease,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(colors: [Color(0xFF0d9488), Color(0xFF14b8a6)]),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.10),
-                              blurRadius: 10,
-                              offset: Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text('Request Trial', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                          ],
-                        ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TrialRequestSuccessScreen(
+                        package: widget.package,
                       ),
                     ),
+                  );
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.ease,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [Color(0xFF0d9488), Color(0xFF14b8a6)]),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.10),
+                        blurRadius: 10,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('Request Trial', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                      const SizedBox(width: 8),
+                      Icon(Icons.chevron_right, color: Colors.white, size: 20),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
           ],
         ),

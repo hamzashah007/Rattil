@@ -85,15 +85,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
 	Future<void> _handleSignUp(BuildContext context) async {
 		if (_formKey.currentState!.validate()) {
-			// Check if gender is selected
-			if (_selectedGender == null) {
-				AppSnackbar.showWarning(
-					context,
-					title: 'Gender Required',
-					message: 'Please select your gender to continue.',
-				);
-				return;
-			}
 			// Check if terms are accepted
 			if (!_acceptedTerms) {
 				AppSnackbar.showWarning(
@@ -108,7 +99,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 				name: _nameController.text,
 				email: _emailController.text,
 				password: _passwordController.text,
-				gender: _selectedGender!,
+				gender: _selectedGender,
 				context: context,
 			);
 			if (error == null && mounted) {
@@ -120,13 +111,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 				);
 				Navigator.pop(context);
 			} else if (error != null && mounted) {
-				// Use the enhanced error result for better user feedback
-				final errorResult = authProvider.lastError;
-				if (errorResult != null) {
-					AppSnackbar.showErrorResult(context, errorResult: errorResult);
-				} else {
-					AppSnackbar.showError(context, message: error);
-				}
+				AppSnackbar.showError(context, message: error);
 			}
 		}
 	}
@@ -246,7 +231,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 																		Icon(Icons.person_outline, color: AppColors.teal500),
 																		const SizedBox(width: 12),
 																		Text(
-																			'Select Gender',
+																			'Select Gender (Optional)',
 																			style: TextStyle(
 																				color: subtitleColor,
 																				fontSize: 16,
@@ -350,12 +335,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
 																				),
 																				recognizer: TapGestureRecognizer()
 																					..onTap = () {
-																						Navigator.push(
-																							context,
-																							MaterialPageRoute(
-																								builder: (context) => const PrivacyPolicyScreen(),
-																							),
-																						);
+																						// Navigator.push(
+																						// 	context,
+																						// 	// MaterialPageRoute(
+																						// 	// 	// builder: (context) => const PrivacyPolicyScreen(),
+																						// 	// ),
+																						// );
 																					},
 																			),
 																		],

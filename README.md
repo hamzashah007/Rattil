@@ -1,16 +1,40 @@
-# rattil
+# Rattil - Quran Learning App
 
-A new Flutter project.
+A Flutter application for online Quran classes with subscription management.
 
-## Getting Started
+## 📱 Features
 
-This project is a starting point for a Flutter application.
+- 🔐 Firebase Authentication (Email/Password)
+- 📚 Package enrollment system (Premium Intensive, etc.)
+- 💳 Apple In-App Purchase integration (planned)
+- 👤 User profile management
+- 🗑️ Account deletion (Apple App Store compliant)
+- 🌓 Dark/Light theme support
 
-A few resources to get you started if this is your first Flutter project:
+## 🗄️ Database Structure
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+See **[FIRESTORE_STRUCTURE.md](FIRESTORE_STRUCTURE.md)** for complete documentation.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+**Collections:**
+- `users` - User profiles
+- `transactions` - Payment records (anonymized on deletion)
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Flutter SDK 3.x
+- Firebase project configured
+- iOS/Android development environment
+
+### Installation
+```bash
+flutter pub get
+flutter run
+```
+
+## 📝 Documentation
+
+- **Database Schema**: See `FIRESTORE_STRUCTURE.md`
+- **Helper Functions**: See `lib/utils/firestore_helpers.dart`
+- **Account Deletion**: Implemented in `lib/providers/auth_provider.dart`
+

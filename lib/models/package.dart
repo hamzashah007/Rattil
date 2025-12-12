@@ -1,7 +1,7 @@
 class Package {
   final int id;
   final String name;
-  final int price;
+  final double price;
   final String duration;
   final String time;
   final List<String> features;
@@ -26,12 +26,11 @@ class Package {
 
 final List<Package> packages = [
   Package(
-    id: 1,
+    id: 01,
     name: 'Basic Recitation',
-    price: 10,
+    price: 12.99,
     duration: '3 classes per week',
     time: '20-25 minutes',
-   
     features: [
       'Tajweed Rules',
       'Basic Pronunciation',
@@ -42,29 +41,26 @@ final List<Package> packages = [
     level: 'beginner',
   ),
   Package(
-    id: 2,
+    id: 02,
     name: 'Intermediate',
-    price: 18,
+    price: 19.99,
     duration: '3 classes per week',
     time: '40-45 minutes',
-
     features: [
       'Tajweed Rules',
       'Tafseer',
       'Qualified Tutors',
-    
     ],
     colorGradientStart: 0xFF14b8a6,
     colorGradientEnd: 0xFF06b6d4,
     level: 'intermediate',
   ),
   Package(
-    id: 3,
+    id: 03,
     name: 'Premium Intensive',
-    price: 25,
+    price: 29.99,
     duration: '3 classes per week',
     time: '45-60 minutes',
-
     features: [
       'Tajweed Rules',
       'Tafseer',
