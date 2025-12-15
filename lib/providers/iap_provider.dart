@@ -25,6 +25,8 @@ class IAPProvider extends ChangeNotifier {
           if (purchase.status == PurchaseStatus.purchased) {
             // TODO: Validate purchase, unlock content, and record in Firestore
             // Example: await validateAndUnlock(purchase);
+            // Navigation to subscriber dashboard (if context is available)
+            // Use a callback or event to trigger navigation in the UI
           }
           // Handle other statuses if needed
         }

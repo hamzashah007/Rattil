@@ -9,7 +9,7 @@ import 'package:rattil/widgets/app_snackbar.dart';
 import 'package:provider/provider.dart';
 import 'package:rattil/providers/auth_provider.dart' as my_auth;
 import 'package:rattil/providers/theme_provider.dart';
-import 'package:rattil/screens/privacy_policy_screen.dart';
+
 
 class SignUpScreen extends StatefulWidget {
 	const SignUpScreen({Key? key}) : super(key: key);

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:rattil/utils/firestore_helpers.dart';
 import 'package:rattil/utils/error_handler.dart';
 
 class AuthProvider extends ChangeNotifier {

@@ -13,6 +13,7 @@ import 'package:rattil/screens/profile_screen.dart';
 import 'package:rattil/providers/auth_provider.dart';
 import 'package:rattil/providers/iap_provider.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:rattil/screens/subscriber_dashboard_screen.dart';
 
 class PackagesScreen extends StatefulWidget {
   final bool showAppBar;
@@ -159,6 +160,26 @@ class _PackagesScreenState extends State<PackagesScreen> {
         userName: authProvider.userName ?? '',
         userEmail: authProvider.userEmail ?? '',
         userGender: authProvider.userGender,
+      );
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Listen for purchase updates and navigate on success
+    final iapProvider = Provider.of<IAPProvider>(context);
+    iapProvider.addListener(_handlePurchaseUpdate);
+  }
+
+  void _handlePurchaseUpdate() {
+    final iapProvider = Provider.of<IAPProvider>(context, listen: false);
+    final hasPurchased = iapProvider.purchases.any((purchase) => purchase.status == PurchaseStatus.purchased);
+    if (hasPurchased) {
+      // Remove listener to prevent multiple navigations
+      iapProvider.removeListener(_handlePurchaseUpdate);
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const SubscriberDashboardScreen()),
       );
     }
   }

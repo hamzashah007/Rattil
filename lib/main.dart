@@ -7,6 +7,7 @@ import 'package:rattil/providers/auth_provider.dart';
 import 'package:rattil/providers/iap_provider.dart';
 import 'package:rattil/screens/splashscreen.dart';
 
+
 import 'firebase_options.dart';
 
 void main() async {
