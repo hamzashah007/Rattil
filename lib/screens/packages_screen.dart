@@ -71,7 +71,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
     final iapProvider = Provider.of<IAPProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
 
-    debugPrint('PackagesScreen: Showing tab index: \\${provider.selectedIndex}');
+    debugPrint('[PackagesScreen] Showing tab index: \\${provider.selectedIndex}, IAP isLoading: \\${iapProvider.isLoading}, error: \\${iapProvider.errorMessage}');
     if (provider.selectedIndex == 0) {
       return Center(child: Text('Home Screen', style: TextStyle(fontSize: 32)));
     } else if (provider.selectedIndex == 1) {
@@ -107,51 +107,59 @@ class _PackagesScreenState extends State<PackagesScreen> {
                   ),
                   IconButton(
                     icon: Icon(Icons.refresh, color: Colors.red),
-                    onPressed: () => iapProvider.refreshProducts(),
+                    onPressed: () {
+                      debugPrint('[PackagesScreen] Refresh button pressed.');
+                      iapProvider.refreshProducts();
+                    },
                   ),
                 ],
               ),
             ),
+          // Always show the list, even if loading, so only the button shows spinner
           Expanded(
-            child: iapProvider.isLoading
-                ? Center(child: CircularProgressIndicator())
-                : RefreshIndicator(
-                    color: Color(0xFF0d9488), // AppColors.teal500 or your relevant teal
-                    onRefresh: () => iapProvider.refreshProducts(),
-                    child: ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 75),
-                      itemCount: filteredPackages.length,
-                      itemBuilder: (context, index) {
-                        final pkg = filteredPackages[index];
-                        return Consumer<IAPProvider>(
-                          builder: (context, iapProvider, _) {
-                            return PackageCard(
-                              package: pkg,
-                              delay: index * 100,
-                              onEnroll: _purchasingIndex == index
-                                  ? null
-                                  : () async {
-                                      setState(() => _purchasingIndex = index);
-                                      final productId = pkg.id.toString().padLeft(2, '0');
-                                      ProductDetails? product;
-                                      try {
-                                        product = iapProvider.products.firstWhere((p) => p.id == productId);
-                                        await Future.delayed(Duration(milliseconds: 2500));
-                                        iapProvider.buy(product);
-                                      } catch (e) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text('Subscription product not found.')),
-                                        );
-                                      }
-                                      setState(() => _purchasingIndex = -1);
-                                    },
-                              isLoading: _purchasingIndex == index,
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  ),
+            child: RefreshIndicator(
+              color: Color(0xFF0d9488), // AppColors.teal500 or your relevant teal
+              onRefresh: () {
+                debugPrint('[PackagesScreen] Pull-to-refresh triggered.');
+                return iapProvider.refreshProducts();
+              },
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 75),
+                itemCount: filteredPackages.length,
+                itemBuilder: (context, index) {
+                  final pkg = filteredPackages[index];
+                  return Consumer<IAPProvider>(
+                    builder: (context, iapProvider, _) {
+                      return PackageCard(
+                        package: pkg,
+                        delay: index * 100,
+                        onEnroll: _purchasingIndex == index
+                            ? null
+                            : () async {
+                                setState(() => _purchasingIndex = index);
+                                final productId = pkg.id.toString().padLeft(2, '0');
+                                ProductDetails? product;
+                                try {
+                                  debugPrint('[PackagesScreen] Attempting to find product for id: $productId');
+                                  product = iapProvider.products.firstWhere((p) => p.id == productId);
+                                  debugPrint('[PackagesScreen] Product found: ${product.id}, starting purchase.');
+                                  await Future.delayed(Duration(milliseconds: 2500));
+                                  iapProvider.buy(product);
+                                } catch (e) {
+                                  debugPrint('[PackagesScreen] Product not found for id: $productId. Error: $e');
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Subscription product not found.')),
+                                  );
+                                }
+                                setState(() => _purchasingIndex = -1);
+                              },
+                        isLoading: iapProvider.isLoading || _purchasingIndex == index,
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
           ),
         ],
       );
@@ -164,24 +172,36 @@ class _PackagesScreenState extends State<PackagesScreen> {
     }
   }
 
+  void _handlePurchaseUpdate() {
+    final iapProvider = Provider.of<IAPProvider>(context, listen: false);
+    debugPrint('[PackagesScreen] _handlePurchaseUpdate called. Purchases: \\${iapProvider.purchases.map((p) => 'id:[33m[1m${p.productID}[0m, status:[32m${p.status}[0m').toList()}');
+    final hasPurchased = iapProvider.purchases.any((purchase) => purchase.status == PurchaseStatus.purchased);
+    if (hasPurchased) {
+      // Remove listener to prevent multiple navigations
+      iapProvider.removeListener(_handlePurchaseUpdate);
+      debugPrint('[PackagesScreen] Navigating to SubscriberDashboardScreen after purchase.');
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const SubscriberDashboardScreen()),
+      );
+    } else {
+      debugPrint('[PackagesScreen] No completed purchase detected.');
+    }
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Listen for purchase updates and navigate on success
     final iapProvider = Provider.of<IAPProvider>(context);
+    iapProvider.removeListener(_handlePurchaseUpdate); // Prevent duplicate listeners
     iapProvider.addListener(_handlePurchaseUpdate);
   }
 
-  void _handlePurchaseUpdate() {
+  @override
+  void dispose() {
     final iapProvider = Provider.of<IAPProvider>(context, listen: false);
-    final hasPurchased = iapProvider.purchases.any((purchase) => purchase.status == PurchaseStatus.purchased);
-    if (hasPurchased) {
-      // Remove listener to prevent multiple navigations
-      iapProvider.removeListener(_handlePurchaseUpdate);
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const SubscriberDashboardScreen()),
-      );
-    }
+    iapProvider.removeListener(_handlePurchaseUpdate);
+    super.dispose();
   }
 
   @override
