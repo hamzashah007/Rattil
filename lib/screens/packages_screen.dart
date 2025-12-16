@@ -9,10 +9,9 @@ import 'package:rattil/widgets/app_bar_widget.dart';
 import 'package:rattil/widgets/curved_bottom_bar.dart';
 import 'package:rattil/widgets/drawer_menu.dart';
 import 'package:rattil/widgets/package_card.dart';
+import 'package:rattil/providers/revenuecat_provider.dart';
 import 'package:rattil/screens/profile_screen.dart';
 import 'package:rattil/providers/auth_provider.dart';
-import 'package:rattil/providers/iap_provider.dart';
-import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:rattil/screens/subscriber_dashboard_screen.dart';
 
 class PackagesScreen extends StatefulWidget {
@@ -26,7 +25,6 @@ class PackagesScreen extends StatefulWidget {
 class _PackagesScreenState extends State<PackagesScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final int notificationCount = 2;
-  int _purchasingIndex = -1;
 
   void _onBottomBarTap(BuildContext context, int index) {
     final provider = Provider.of<PackagesProvider>(context, listen: false);
@@ -64,18 +62,234 @@ class _PackagesScreenState extends State<PackagesScreen> {
     return packages;
   }
 
+  @override
+  void initState() {
+    super.initState();
+    debugPrint('📦 [PackagesScreen] Initializing PackagesScreen');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      debugPrint('🚀 [PackagesScreen] Starting RevenueCat provider...');
+      context.read<RevenueCatProvider>().start();
+    });
+  }
+
+  /// Purchase a package using RevenueCat (Apple In-App Purchase - IAP only)
+  /// All purchases/subscriptions use Apple IAP via RevenueCat SDK
+  /// Best practices:
+  /// 1. Get offerings (pre-fetched on app launch)
+  /// 2. Find matching package from availablePackages dynamically
+  /// 3. Purchase the package directly using Apple IAP
+  Future<void> _purchasePackage(BuildContext context, int index, Package uiPackage) async {
+    debugPrint('🛒 [PackagesScreen] ========== PURCHASE FLOW STARTED ==========');
+    debugPrint('📋 [PackagesScreen] Package details:');
+    debugPrint('   - Name: ${uiPackage.name}');
+    debugPrint('   - ID: ${uiPackage.id}');
+    debugPrint('   - Price: \$${uiPackage.price}');
+    debugPrint('   - Index: $index');
+    
+    final revenueCat = context.read<RevenueCatProvider>();
+    
+    // Ensure offerings are loaded
+    debugPrint('🔍 [PackagesScreen] Checking offerings availability...');
+    if (revenueCat.offerings?.current == null) {
+      debugPrint('⚠️  [PackagesScreen] Offerings not loaded, fetching now...');
+      await revenueCat.refreshOfferings();
+      debugPrint('✅ [PackagesScreen] Offerings refresh completed');
+    } else {
+      debugPrint('✅ [PackagesScreen] Offerings already loaded');
+      debugPrint('   - Current offering ID: ${revenueCat.offerings?.current?.identifier}');
+      debugPrint('   - Available packages: ${revenueCat.offerings?.current?.availablePackages.length ?? 0}');
+    }
+
+    // Match UI package (id: 01, 02, 03) to RevenueCat package by store product identifier
+    final productId = uiPackage.id.toString().padLeft(2, '0');
+    debugPrint('🔎 [PackagesScreen] Matching package to RevenueCat product...');
+    debugPrint('   - Looking for product ID: $productId');
+    
+    final rcPackage = revenueCat.findPackageByStoreProductId(productId);
+
+    if (rcPackage == null) {
+      debugPrint('❌ [PackagesScreen] Package NOT FOUND in RevenueCat offerings!');
+      debugPrint('   - Searched product ID: $productId');
+      debugPrint('   - Available packages: ${revenueCat.availablePackages.length}');
+      if (revenueCat.availablePackages.isNotEmpty) {
+        debugPrint('   - Available product IDs:');
+        for (final pkg in revenueCat.availablePackages) {
+          debugPrint('     • ${pkg.storeProduct.identifier} (${pkg.identifier})');
+        }
+      }
+      if (!mounted) {
+        debugPrint('⚠️  [PackagesScreen] Widget not mounted, aborting...');
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Product not available. Please check your connection and try again.'),
+        ),
+      );
+      debugPrint('🛑 [PackagesScreen] ========== PURCHASE FLOW ABORTED ==========');
+      return;
+    }
+
+    debugPrint('✅ [PackagesScreen] Package matched successfully!');
+    debugPrint('   - RevenueCat Package ID: ${rcPackage.identifier}');
+    debugPrint('   - Store Product ID: ${rcPackage.storeProduct.identifier}');
+    debugPrint('   - Product Title: ${rcPackage.storeProduct.title}');
+    debugPrint('   - Product Price: ${rcPackage.storeProduct.priceString}');
+    debugPrint('   - Package Type: ${rcPackage.packageType}');
+
+    // Set purchasing state IMMEDIATELY to show loading UI
+    debugPrint('⏳ [PackagesScreen] Setting purchasing state for index $index...');
+    final packagesProvider = Provider.of<PackagesProvider>(context, listen: false);
+    packagesProvider.setPurchasingIndex(index);
+    // Force immediate UI update by scheduling a microtask
+    await Future.microtask(() {});
+    
+    // Purchase using the package directly (best practice)
+    debugPrint('💳 [PackagesScreen] Initiating purchase with RevenueCat...');
+    debugPrint('   - Calling purchasePackage()...');
+    
+    final customerInfo = await revenueCat.purchasePackage(rcPackage);
+    
+    debugPrint('📥 [PackagesScreen] Purchase call completed');
+    
+    if (!mounted) {
+      debugPrint('⚠️  [PackagesScreen] Widget not mounted after purchase, aborting...');
+      return;
+    }
+
+    if (revenueCat.errorMessage != null) {
+      debugPrint('❌ [PackagesScreen] Purchase FAILED with error:');
+      debugPrint('   - Error: ${revenueCat.errorMessage}');
+      // Clear purchasing state before showing error
+      final packagesProvider = Provider.of<PackagesProvider>(context, listen: false);
+      packagesProvider.clearPurchasingIndex();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(revenueCat.errorMessage!)),
+      );
+      debugPrint('🛑 [PackagesScreen] ========== PURCHASE FLOW FAILED ==========');
+    } else if (customerInfo != null) {
+      debugPrint('✅ [PackagesScreen] Purchase completed successfully!');
+      debugPrint('   - Customer Info received');
+      debugPrint('   - Checking entitlement access...');
+      
+      // Retry mechanism: Wait for subscription status to sync
+      // Keep purchasing state active until subscription is confirmed
+      bool subscriptionActive = false;
+      
+      // First, immediately refresh customer info (no delay)
+      debugPrint('   - Immediate refresh (attempt 1/3)...');
+      await revenueCat.refreshCustomerInfo();
+      
+      // Check immediately
+      final hasAccessImmediate = revenueCat.hasAccess;
+      final isThisPackageSubscribedImmediate = revenueCat.isProductSubscribed(productId);
+      debugPrint('   - Immediate check: Has access: $hasAccessImmediate, Is subscribed: $isThisPackageSubscribedImmediate');
+      
+      if (hasAccessImmediate && isThisPackageSubscribedImmediate) {
+        subscriptionActive = true;
+        debugPrint('   ✅ Subscription status confirmed immediately!');
+      } else {
+        // If not confirmed, retry with delays
+        for (int attempt = 1; attempt < 3; attempt++) {
+          debugPrint('   - Retry attempt ${attempt + 1}/3, waiting for sync...');
+          await Future.delayed(Duration(milliseconds: 200 * attempt)); // 200ms, 400ms
+          
+          // Refresh customer info to get latest status
+          await revenueCat.refreshCustomerInfo();
+          
+          final hasAccess = revenueCat.hasAccess;
+          final isThisPackageSubscribed = revenueCat.isProductSubscribed(productId);
+          
+          debugPrint('   - Attempt ${attempt + 1}: Has access: $hasAccess, Is subscribed: $isThisPackageSubscribed');
+          
+          if (hasAccess && isThisPackageSubscribed) {
+            subscriptionActive = true;
+            debugPrint('   ✅ Subscription status confirmed!');
+            break;
+          }
+        }
+      }
+      
+      if (subscriptionActive) {
+        debugPrint('🎉 [PackagesScreen] Entitlement is ACTIVE!');
+        debugPrint('   - User now has access to Rattil Packages');
+        // Clear purchasing state immediately
+        final packagesProvider = Provider.of<PackagesProvider>(context, listen: false);
+        packagesProvider.clearPurchasingIndex();
+        // Force RevenueCat provider to notify listeners for immediate UI update
+        await revenueCat.refreshCustomerInfo();
+        // Purchase successful and entitlement is active
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Subscription activated! Welcome to Rattil Packages.',
+                style: TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Color(0xFF0d9488), // Teal color
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.only(
+                bottom: 60, // Position lower on screen
+                left: 16,
+                right: 16,
+              ),
+            ),
+          );
+        }
+        debugPrint('✅ [PackagesScreen] ========== PURCHASE FLOW SUCCESS ==========');
+      } else {
+        debugPrint('⚠️  [PackagesScreen] Purchase completed but subscription status not confirmed after retries');
+        debugPrint('   - This might be normal if entitlement is pending activation');
+        // Clear purchasing state even if not fully synced (but keep trying in background)
+        final packagesProvider = Provider.of<PackagesProvider>(context, listen: false);
+        packagesProvider.clearPurchasingIndex();
+        // Show success message anyway since purchase was successful
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Purchase completed! Your subscription will be activated shortly.'),
+              backgroundColor: Colors.orange,
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.only(
+                bottom: 100,
+                left: 16,
+                right: 16,
+              ),
+            ),
+          );
+        }
+      }
+    } else {
+      debugPrint('⚠️  [PackagesScreen] Purchase returned null customerInfo');
+      debugPrint('   - User may have cancelled the purchase');
+      // Clear purchasing state on cancellation
+      final packagesProvider = Provider.of<PackagesProvider>(context, listen: false);
+      packagesProvider.clearPurchasingIndex();
+      debugPrint('🛑 [PackagesScreen] ========== PURCHASE FLOW CANCELLED ==========');
+    }
+  }
+
   Widget _getScreenContent(BuildContext context) {
     final provider = Provider.of<PackagesProvider>(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
-    final iapProvider = Provider.of<IAPProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
+    
+    // Use Consumer to listen to RevenueCat changes for immediate UI updates
+    return Consumer<RevenueCatProvider>(
+      builder: (context, revenueCat, child) {
 
-    debugPrint('[PackagesScreen] Showing tab index: \\${provider.selectedIndex}, IAP isLoading: \\${iapProvider.isLoading}, error: \\${iapProvider.errorMessage}');
+    debugPrint('🎨 [PackagesScreen] Building UI - Tab index: ${provider.selectedIndex}');
+    debugPrint('   - isDarkMode: $isDarkMode');
+    debugPrint('   - hasAccess: ${revenueCat.hasAccess}');
+    debugPrint('   - isPurchasing: ${revenueCat.isPurchasing}');
+    debugPrint('   - availablePackages: ${revenueCat.availablePackages.length}');
+    
     if (provider.selectedIndex == 0) {
+      debugPrint('🏠 [PackagesScreen] Showing Home Screen tab');
       return Center(child: Text('Home Screen', style: TextStyle(fontSize: 32)));
     } else if (provider.selectedIndex == 1) {
-      // Pull-to-refresh and error/loading handling for IAP
+      debugPrint('📦 [PackagesScreen] Showing Packages tab');
       return Column(
         children: [
           Padding(
@@ -94,68 +308,81 @@ class _PackagesScreenState extends State<PackagesScreen> {
               ),
             ),
           ),
-          if (iapProvider.errorMessage != null)
+          // Error message display
+          if (revenueCat.errorMessage != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      iapProvider.errorMessage!,
-                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade300),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        revenueCat.errorMessage!,
+                        style: TextStyle(
+                          color: Colors.red.shade700,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.refresh, color: Colors.red),
-                    onPressed: () {
-                      debugPrint('[PackagesScreen] Refresh button pressed.');
-                      iapProvider.refreshProducts();
-                    },
-                  ),
-                ],
+                    IconButton(
+                      icon: Icon(Icons.refresh, color: Colors.red.shade700),
+                      onPressed: () {
+                        debugPrint('🔄 [PackagesScreen] Refresh button pressed - refreshing offerings and customer info');
+                        revenueCat.refreshOfferings();
+                        revenueCat.refreshCustomerInfo();
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
-          // Always show the list, even if loading, so only the button shows spinner
           Expanded(
             child: RefreshIndicator(
-              color: Color(0xFF0d9488), // AppColors.teal500 or your relevant teal
-              onRefresh: () {
+              color: Color(0xFF0d9488),
+              onRefresh: () async {
                 debugPrint('[PackagesScreen] Pull-to-refresh triggered.');
-                return iapProvider.refreshProducts();
+                await revenueCat.refreshOfferings();
+                await revenueCat.refreshCustomerInfo();
               },
               child: ListView.builder(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 75),
                 itemCount: filteredPackages.length,
                 itemBuilder: (context, index) {
                   final pkg = filteredPackages[index];
-                  return Consumer<IAPProvider>(
-                    builder: (context, iapProvider, _) {
-                      return PackageCard(
-                        package: pkg,
-                        delay: index * 100,
-                        onEnroll: _purchasingIndex == index
-                            ? null
-                            : () async {
-                                setState(() => _purchasingIndex = index);
-                                final productId = pkg.id.toString().padLeft(2, '0');
-                                ProductDetails? product;
-                                try {
-                                  debugPrint('[PackagesScreen] Attempting to find product for id: $productId');
-                                  product = iapProvider.products.firstWhere((p) => p.id == productId);
-                                  debugPrint('[PackagesScreen] Product found: ${product.id}, starting purchase.');
-                                  await Future.delayed(Duration(milliseconds: 2500));
-                                  iapProvider.buy(product);
-                                } catch (e) {
-                                  debugPrint('[PackagesScreen] Product not found for id: $productId. Error: $e');
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Subscription product not found.')),
-                                  );
-                                }
-                                setState(() => _purchasingIndex = -1);
-                              },
-                        isLoading: iapProvider.isLoading || _purchasingIndex == index,
-                      );
-                    },
+                  final productId = pkg.id.toString().padLeft(2, '0');
+                  final isThisPackageSubscribed = revenueCat.isProductSubscribed(productId);
+                  
+                  debugPrint('📋 [PackagesScreen] Building package card $index: ${pkg.name}');
+                  debugPrint('   - Product ID: $productId');
+                  debugPrint('   - Is this package subscribed: $isThisPackageSubscribed');
+                  debugPrint('   - Subscribed product ID: ${revenueCat.subscribedProductId ?? "none"}');
+                  
+                  return Consumer<PackagesProvider>(
+                    builder: (context, packagesProvider, _) => PackageCard(
+                      package: pkg,
+                      delay: index * 100,
+                      hasAccess: isThisPackageSubscribed,
+                      onEnroll: isThisPackageSubscribed
+                          ? () {
+                              debugPrint('👆 [PackagesScreen] Access button tapped for subscribed package - navigating to dashboard');
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const SubscriberDashboardScreen()),
+                              );
+                            }
+                          : () {
+                              debugPrint('👆 [PackagesScreen] Subscribe button tapped for package: ${pkg.name} (index: $index, productId: $productId)');
+                              _purchasePackage(context, index, pkg);
+                            },
+                      isLoading: revenueCat.isPurchasing && packagesProvider.purchasingIndex == index,
+                    ),
                   );
                 },
               ),
@@ -170,49 +397,34 @@ class _PackagesScreenState extends State<PackagesScreen> {
         userGender: authProvider.userGender,
       );
     }
-  }
-
-  void _handlePurchaseUpdate() {
-    final iapProvider = Provider.of<IAPProvider>(context, listen: false);
-    debugPrint('[PackagesScreen] _handlePurchaseUpdate called. Purchases: \\${iapProvider.purchases.map((p) => 'id:[33m[1m${p.productID}[0m, status:[32m${p.status}[0m').toList()}');
-    final hasPurchased = iapProvider.purchases.any((purchase) => purchase.status == PurchaseStatus.purchased);
-    if (hasPurchased) {
-      // Remove listener to prevent multiple navigations
-      iapProvider.removeListener(_handlePurchaseUpdate);
-      debugPrint('[PackagesScreen] Navigating to SubscriberDashboardScreen after purchase.');
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const SubscriberDashboardScreen()),
-      );
-    } else {
-      debugPrint('[PackagesScreen] No completed purchase detected.');
-    }
+      },
+    );
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Listen for purchase updates and navigate on success
-    final iapProvider = Provider.of<IAPProvider>(context);
-    iapProvider.removeListener(_handlePurchaseUpdate); // Prevent duplicate listeners
-    iapProvider.addListener(_handlePurchaseUpdate);
   }
 
   @override
   void dispose() {
-    final iapProvider = Provider.of<IAPProvider>(context, listen: false);
-    iapProvider.removeListener(_handlePurchaseUpdate);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('🏗️  [PackagesScreen] Building main widget tree');
     final authProvider = Provider.of<AuthProvider>(context);
     return ChangeNotifierProvider<PackagesProvider>(
       create: (_) => PackagesProvider(),
-      child: Consumer4<PackagesProvider, ThemeProvider, DrawerProvider, IAPProvider>(
-        builder: (context, provider, themeProvider, drawerProvider, iapProvider, _) {
+      child: Consumer3<PackagesProvider, ThemeProvider, DrawerProvider>(
+        builder: (context, provider, themeProvider, drawerProvider, _) {
           final isDarkMode = themeProvider.isDarkMode;
           final isDrawerOpen = drawerProvider.isDrawerOpen;
+          debugPrint('🔄 [PackagesScreen] Main Consumer rebuild');
+          debugPrint('   - isDarkMode: $isDarkMode');
+          debugPrint('   - isDrawerOpen: $isDrawerOpen');
+          debugPrint('   - selectedIndex: ${provider.selectedIndex}');
 
           return Stack(
             children: [
@@ -236,6 +448,9 @@ class _PackagesScreenState extends State<PackagesScreen> {
                 toggleDarkMode: () => _toggleDarkMode(context),
                 handleNavigation: (route) => _handleNavigation(context, route),
                 handleLogout: () => _handleLogout(context),
+                onCustomerCenterTap: () {
+                  context.read<RevenueCatProvider>().openCustomerCenter();
+                },
                 userName: authProvider.userName ?? '',
                 userEmail: authProvider.userEmail ?? '',
               ),

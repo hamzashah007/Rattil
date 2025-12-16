@@ -215,7 +215,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 														},
 													),
 													const SizedBox(height: 10),
-													// Gender dropdown
+													// Gender dropdown (OPTIONAL - not required for account creation)
 													Container(
 														height: 56,
 														padding: const EdgeInsets.symmetric(horizontal: 16),

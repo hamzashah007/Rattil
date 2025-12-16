@@ -3,9 +3,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:rattil/models/package.dart';
 import 'package:rattil/providers/theme_provider.dart';
+import 'package:rattil/providers/revenuecat_provider.dart';
 import 'package:rattil/screens/trial_request_success_screen.dart';
-import 'package:rattil/providers/iap_provider.dart';
-import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:rattil/screens/subscriber_dashboard_screen.dart';
 
 class PackageDetailScreen extends StatefulWidget {
   final Package package;
@@ -16,16 +16,213 @@ class PackageDetailScreen extends StatefulWidget {
 }
 
 class _PackageDetailScreenState extends State<PackageDetailScreen> {
-  bool _isPurchasing = false;
 
   @override
   void initState() {
     super.initState();
-    // Remove IAP fetch logic from here, now handled globally in SplashScreen
+    debugPrint('📦 [PackageDetailScreen] Initializing for package: ${widget.package.name} (ID: ${widget.package.id})');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      debugPrint('🚀 [PackageDetailScreen] Starting RevenueCat provider...');
+      context.read<RevenueCatProvider>().start();
+    });
+  }
+
+  /// Purchase a package using RevenueCat (Apple In-App Purchase - IAP only)
+  /// All purchases/subscriptions use Apple IAP via RevenueCat SDK
+  Future<void> _purchasePackage(BuildContext context) async {
+    debugPrint('🛒 [PackageDetailScreen] ========== PURCHASE FLOW STARTED ==========');
+    debugPrint('📋 [PackageDetailScreen] Package details:');
+    debugPrint('   - Name: ${widget.package.name}');
+    debugPrint('   - ID: ${widget.package.id}');
+    debugPrint('   - Price: \$${widget.package.price}');
+    
+    final revenueCat = context.read<RevenueCatProvider>();
+    
+    // Note: RevenueCatProvider.isPurchasing is automatically set by purchasePackage()
+    // No need to set local state
+    debugPrint('⏳ [PackageDetailScreen] Initiating purchase...');
+    
+    // Ensure offerings are loaded
+    debugPrint('🔍 [PackageDetailScreen] Checking offerings availability...');
+    if (revenueCat.offerings?.current == null) {
+      debugPrint('⚠️  [PackageDetailScreen] Offerings not loaded, fetching now...');
+      await revenueCat.refreshOfferings();
+      debugPrint('✅ [PackageDetailScreen] Offerings refresh completed');
+    } else {
+      debugPrint('✅ [PackageDetailScreen] Offerings already loaded');
+      debugPrint('   - Current offering ID: ${revenueCat.offerings?.current?.identifier}');
+      debugPrint('   - Available packages: ${revenueCat.offerings?.current?.availablePackages.length ?? 0}');
+    }
+
+    // Match UI package (id: 01, 02, 03) to RevenueCat package by store product identifier
+    final productId = widget.package.id.toString().padLeft(2, '0');
+    debugPrint('🔎 [PackageDetailScreen] Matching package to RevenueCat product...');
+    debugPrint('   - Looking for product ID: $productId');
+    
+    final rcPackage = revenueCat.findPackageByStoreProductId(productId);
+
+    if (rcPackage == null) {
+      debugPrint('❌ [PackageDetailScreen] Package NOT FOUND in RevenueCat offerings!');
+      debugPrint('   - Searched product ID: $productId');
+      debugPrint('   - Available packages: ${revenueCat.availablePackages.length}');
+      if (revenueCat.availablePackages.isNotEmpty) {
+        debugPrint('   - Available product IDs:');
+        for (final pkg in revenueCat.availablePackages) {
+          debugPrint('     • ${pkg.storeProduct.identifier} (${pkg.identifier})');
+        }
+      }
+      if (!mounted) {
+        debugPrint('⚠️  [PackageDetailScreen] Widget not mounted, aborting...');
+        return;
+      }
+      // Note: RevenueCatProvider.isPurchasing is automatically cleared by purchasePackage()
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Product not available. Please check your connection and try again.'),
+        ),
+      );
+      debugPrint('🛑 [PackageDetailScreen] ========== PURCHASE FLOW ABORTED ==========');
+      return;
+    }
+
+    debugPrint('✅ [PackageDetailScreen] Package matched successfully!');
+    debugPrint('   - RevenueCat Package ID: ${rcPackage.identifier}');
+    debugPrint('   - Store Product ID: ${rcPackage.storeProduct.identifier}');
+    debugPrint('   - Product Title: ${rcPackage.storeProduct.title}');
+    debugPrint('   - Product Price: ${rcPackage.storeProduct.priceString}');
+    debugPrint('   - Package Type: ${rcPackage.packageType}');
+
+    // Purchase using the package directly (best practice)
+    debugPrint('💳 [PackageDetailScreen] Initiating purchase with RevenueCat...');
+    debugPrint('   - Calling purchasePackage()...');
+    
+    final customerInfo = await revenueCat.purchasePackage(rcPackage);
+    
+    debugPrint('📥 [PackageDetailScreen] Purchase call completed');
+    
+    if (!mounted) {
+      debugPrint('⚠️  [PackageDetailScreen] Widget not mounted after purchase, aborting...');
+      return;
+    }
+
+    if (revenueCat.errorMessage != null) {
+      debugPrint('❌ [PackageDetailScreen] Purchase FAILED with error:');
+      debugPrint('   - Error: ${revenueCat.errorMessage}');
+      // Note: RevenueCatProvider.isPurchasing is automatically cleared by purchasePackage()
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(revenueCat.errorMessage!)),
+      );
+      debugPrint('🛑 [PackageDetailScreen] ========== PURCHASE FLOW FAILED ==========');
+    } else if (customerInfo != null) {
+      debugPrint('✅ [PackageDetailScreen] Purchase completed successfully!');
+      debugPrint('   - Customer Info received');
+      debugPrint('   - Checking entitlement access...');
+      
+      final productId = widget.package.id.toString().padLeft(2, '0');
+      
+      // Retry mechanism: Wait for subscription status to sync
+      // Keep purchasing state active until subscription is confirmed
+      bool subscriptionActive = false;
+      
+      // First, immediately refresh customer info (no delay)
+      debugPrint('   - Immediate refresh (attempt 1/3)...');
+      await revenueCat.refreshCustomerInfo();
+      
+      // Check immediately
+      final hasAccessImmediate = revenueCat.hasAccess;
+      final isThisPackageSubscribedImmediate = revenueCat.isProductSubscribed(productId);
+      debugPrint('   - Immediate check: Has access: $hasAccessImmediate, Is subscribed: $isThisPackageSubscribedImmediate');
+      
+      if (hasAccessImmediate && isThisPackageSubscribedImmediate) {
+        subscriptionActive = true;
+        debugPrint('   ✅ Subscription status confirmed immediately!');
+      } else {
+        // If not confirmed, retry with delays
+        for (int attempt = 1; attempt < 3; attempt++) {
+          debugPrint('   - Retry attempt ${attempt + 1}/3, waiting for sync...');
+          await Future.delayed(Duration(milliseconds: 200 * attempt)); // 200ms, 400ms
+          
+          // Refresh customer info to get latest status
+          await revenueCat.refreshCustomerInfo();
+          
+          final hasAccess = revenueCat.hasAccess;
+          final isThisPackageSubscribed = revenueCat.isProductSubscribed(productId);
+          
+          debugPrint('   - Attempt ${attempt + 1}: Has access: $hasAccess, Is subscribed: $isThisPackageSubscribed');
+          
+          if (hasAccess && isThisPackageSubscribed) {
+            subscriptionActive = true;
+            debugPrint('   ✅ Subscription status confirmed!');
+            break;
+          }
+        }
+      }
+      
+      if (subscriptionActive) {
+        debugPrint('🎉 [PackageDetailScreen] Entitlement is ACTIVE!');
+        debugPrint('   - User now has access to Rattil Packages');
+        // Note: RevenueCatProvider.isPurchasing is automatically cleared by purchasePackage()
+        // Force RevenueCat provider to notify listeners for immediate UI update
+        await revenueCat.refreshCustomerInfo();
+        // Purchase successful and entitlement is active
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Subscription activated! Welcome to Rattil.',
+                style: TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Color(0xFF0d9488), // Teal color
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.only(
+                bottom: 60, // Position lower on screen
+                left: 16,
+                right: 16,
+              ),
+            ),
+          );
+        }
+        debugPrint('🏠 [PackageDetailScreen] Navigating back to previous screen...');
+        // Wait a moment for UI to update before navigating
+        await Future.delayed(const Duration(milliseconds: 300));
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+        debugPrint('✅ [PackageDetailScreen] ========== PURCHASE FLOW SUCCESS ==========');
+      } else {
+        debugPrint('⚠️  [PackageDetailScreen] Purchase completed but subscription status not confirmed after retries');
+        debugPrint('   - This might be normal if entitlement is pending activation');
+        // Note: RevenueCatProvider.isPurchasing is automatically cleared by purchasePackage()
+        // Show success message anyway since purchase was successful
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Purchase completed! Your subscription will be activated shortly.'),
+              backgroundColor: Colors.orange,
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.only(
+                bottom: 60,
+                left: 16,
+                right: 16,
+              ),
+            ),
+          );
+          // Navigate back anyway
+          await Future.delayed(const Duration(milliseconds: 300));
+          Navigator.of(context).pop();
+        }
+      }
+    } else {
+      debugPrint('⚠️  [PackageDetailScreen] Purchase returned null customerInfo');
+      debugPrint('   - User may have cancelled the purchase');
+      // Note: RevenueCatProvider.isPurchasing is automatically cleared by purchasePackage()
+      debugPrint('🛑 [PackageDetailScreen] ========== PURCHASE FLOW CANCELLED ==========');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('🎨 [PackageDetailScreen] Building UI for package: ${widget.package.name}');
     final isDarkMode = context.watch<ThemeProvider>().isDarkMode;
     final bgColor = isDarkMode ? const Color(0xFF111827) : Colors.white;
     final appBarColor = isDarkMode ? const Color(0xFF1F2937) : Colors.white;
@@ -174,42 +371,95 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
                 ],
               ),
             )),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: Consumer<IAPProvider>(
-                builder: (context, iapProvider, _) {
-                  final isLoading = iapProvider.products.isEmpty;
-                  ProductDetails? product;
-                  try {
-                    product = iapProvider.products.firstWhere(
-                      (p) => p.id == widget.package.id.toString().padLeft(2, '0'),
-                    );
-                  } catch (e) {
-                    product = null;
-                  }
-                  return InkWell(
+            const SizedBox(height: 24),
+            // Subscribe button
+            Consumer<RevenueCatProvider>(
+              builder: (context, revenueCat, _) {
+                // Get the product ID for this specific package
+                final productId = widget.package.id.toString().padLeft(2, '0');
+                final isThisPackageSubscribed = revenueCat.isProductSubscribed(productId);
+                
+                debugPrint('🔄 [PackageDetailScreen] Consumer rebuild - RevenueCat state:');
+                debugPrint('   - Package: ${widget.package.name} (ID: ${widget.package.id})');
+                debugPrint('   - Product ID: $productId');
+                debugPrint('   - Is this package subscribed: $isThisPackageSubscribed');
+                debugPrint('   - Subscribed product ID: ${revenueCat.subscribedProductId ?? "none"}');
+                debugPrint('   - hasAccess (general): ${revenueCat.hasAccess}');
+                debugPrint('   - isPurchasing: ${revenueCat.isPurchasing}');
+                debugPrint('   - hasOfferings: ${revenueCat.offerings != null}');
+                debugPrint('   - availablePackages: ${revenueCat.availablePackages.length}');
+                
+                // If user is subscribed to THIS specific package, show "You have access" button
+                if (isThisPackageSubscribed) {
+                  debugPrint('✅ [PackageDetailScreen] User is subscribed to THIS package - showing "You have access" button');
+                  return SizedBox(
+                    width: double.infinity,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () {
+                        debugPrint('🏠 [PackageDetailScreen] "You have access" button tapped - navigating to dashboard');
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const SubscriberDashboardScreen(),
+                          ),
+                        );
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.ease,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Color(0xFF14b8a6), Color(0xFF0d9488)],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.12),
+                              blurRadius: 12,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.check_circle, color: Colors.white, size: 20),
+                            const SizedBox(width: 8),
+                            Text(
+                              'You have access',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(Icons.chevron_right, color: Colors.white, size: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
+                // Subscribe button (user is NOT subscribed to this specific package)
+                final isPurchasing = revenueCat.isPurchasing;
+                debugPrint('🛒 [PackageDetailScreen] User is NOT subscribed to THIS package - showing Subscribe button');
+                debugPrint('   - Button enabled: ${!isPurchasing}');
+                return SizedBox(
+                  width: double.infinity,
+                  child: InkWell(
                     borderRadius: BorderRadius.circular(12),
-                    onTap: _isPurchasing || isLoading
-                        ? null
-                        : () async {
-                            if (product != null) {
-                              setState(() => _isPurchasing = true);
-                              await Future.delayed(Duration(milliseconds: 2500));
-                              iapProvider.buy(product);
-                              setState(() => _isPurchasing = false);
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Subscription product not found.')),
-                              );
-                            }
-                          },
+                    onTap: isPurchasing ? null : () => _purchasePackage(context),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       curve: Curves.ease,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: [Color(0xFF14b8a6), Color(0xFF0d9488)]),
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF14b8a6), Color(0xFF0d9488)],
+                        ),
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
@@ -222,31 +472,43 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          _isPurchasing || isLoading
-                              ? SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2.5,
-                                  ),
-                                )
-                              : Text('Subscribe', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                          const SizedBox(width: 8),
-                          Icon(Icons.chevron_right, color: Colors.white, size: 20),
+                          if (isPurchasing)
+                            SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2.5,
+                              ),
+                            )
+                          else ...[
+                            Text(
+                              'Subscribe',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(Icons.chevron_right, color: Colors.white, size: 20),
+                          ],
                         ],
                       ),
                     ),
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 12),
+            // NOTE: "Request Trial" is NOT a payment mechanism - it's just a form submission
+            // All actual purchases/subscriptions use Apple In-App Purchase (IAP) via RevenueCat
             SizedBox(
               width: double.infinity,
               child: InkWell(
                 borderRadius: BorderRadius.circular(12),
                 onTap: () {
+                  // This is NOT a payment - just a trial request form submission
                   Navigator.push(
                     context,
                     MaterialPageRoute(

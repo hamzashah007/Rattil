@@ -5,6 +5,15 @@ class ProfileProvider extends ChangeNotifier {
   bool _isEditing = false;
   bool get isEditing => _isEditing;
 
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
+
+  bool _isPasswordLoading = false;
+  bool get isPasswordLoading => _isPasswordLoading;
+
+  bool _isDeleteLoading = false;
+  bool get isDeleteLoading => _isDeleteLoading;
+
   String? errorMessage;
   void setError(dynamic error) {
     errorMessage = ErrorHandler.getSimpleMessage(error);
@@ -15,7 +24,21 @@ class ProfileProvider extends ChangeNotifier {
     _isEditing = value;
     notifyListeners();
   }
-  // Add more state and methods as needed for your profile screen
+
+  void setLoading(bool value) {
+    _isLoading = value;
+    notifyListeners();
+  }
+
+  void setPasswordLoading(bool value) {
+    _isPasswordLoading = value;
+    notifyListeners();
+  }
+
+  void setDeleteLoading(bool value) {
+    _isDeleteLoading = value;
+    notifyListeners();
+  }
 
   String? _selectedGender;
   String? get selectedGender => _selectedGender;

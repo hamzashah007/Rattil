@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Helper functions for managing Firestore data in Rattil app
@@ -67,39 +68,80 @@ class FirestoreHelpers {
   }
 
   /// Get user's transaction history
+  /// 
+  /// Uses composite index: userId (Ascending), isAnonymized (Ascending), purchaseDate (Descending)
+  /// This provides better performance by filtering at the database level.
   static Future<List<Map<String, dynamic>>> getUserTransactions(String userId) async {
-    final snapshot = await _firestore
-        .collection('transactions')
-        .where('userId', isEqualTo: userId)
-        .where('isAnonymized', isEqualTo: false)
-        .orderBy('purchaseDate', descending: true)
-        .get();
-    
-    return snapshot.docs.map((doc) => doc.data()).toList();
+    try {
+      // Use composite index for optimal performance
+      // Index: userId (Ascending), isAnonymized (Ascending), purchaseDate (Descending)
+      final snapshot = await _firestore
+          .collection('transactions')
+          .where('userId', isEqualTo: userId)
+          .where('isAnonymized', isEqualTo: false)
+          .orderBy('purchaseDate', descending: true)
+          .get();
+      
+      return snapshot.docs.map((doc) => doc.data()).toList();
+    } catch (e) {
+      // Fallback if index is not ready yet (still building)
+      debugPrint('⚠️ Composite index not ready, using fallback query: $e');
+      // Fallback: Query without isAnonymized filter and filter in memory
+      final snapshot = await _firestore
+          .collection('transactions')
+          .where('userId', isEqualTo: userId)
+          .orderBy('purchaseDate', descending: true)
+          .get();
+      
+      // Filter out anonymized transactions in memory
+      final transactions = snapshot.docs
+          .map((doc) => doc.data())
+          .where((data) => data['isAnonymized'] != true)
+          .toList();
+      
+      return transactions;
+    }
   }
 
   // ==================== USER SUBSCRIPTION HELPERS ====================
+  // 
+  // ⚠️ DEPRECATED: Subscription status is now managed by RevenueCat, not Firebase.
+  // Use RevenueCatProvider instead:
+  // - revenueCat.hasAccess (for subscription access)
+  // - revenueCat.subscribedProductId (for current package)
+  // - revenueCat.customerInfo (for full subscription details)
+  //
+  // These methods are kept for backward compatibility but should NOT be used.
+  // They will be removed in a future version.
   
-  /// Update user's subscription status
+  /// @deprecated Use RevenueCatProvider.hasAccess instead
+  /// 
+  /// Update user's subscription status in Firebase.
+  /// 
+  /// ⚠️ DEPRECATED: Subscription status is managed by RevenueCat, not Firebase.
+  /// Do not use this method. Use RevenueCatProvider instead.
+  @Deprecated('Use RevenueCatProvider for subscription management. This method will be removed in a future version.')
   static Future<void> updateUserSubscription({
     required String userId,
     required String subscriptionStatus,
     String? currentPackage,
   }) async {
-    await _firestore.collection('users').doc(userId).update({
-      'subscriptionStatus': subscriptionStatus,
-      'currentPackage': currentPackage,
-      'lastUpdatedAt': FieldValue.serverTimestamp(),
-    });
+    // Method kept for backward compatibility but does nothing
+    // Subscription status is managed by RevenueCat, not Firebase
+    debugPrint('⚠️ WARNING: updateUserSubscription() is deprecated. Use RevenueCatProvider instead.');
   }
 
-  /// Check if user has active subscription
+  /// @deprecated Use RevenueCatProvider.hasAccess instead
+  /// 
+  /// Check if user has active subscription in Firebase.
+  /// 
+  /// ⚠️ DEPRECATED: Subscription status is managed by RevenueCat, not Firebase.
+  /// Do not use this method. Use RevenueCatProvider.hasAccess instead.
+  @Deprecated('Use RevenueCatProvider.hasAccess instead. This method will be removed in a future version.')
   static Future<bool> hasActiveSubscription(String userId) async {
-    final userDoc = await _firestore.collection('users').doc(userId).get();
-    
-    if (!userDoc.exists) return false;
-    
-    final data = userDoc.data();
-    return data?['subscriptionStatus'] == 'active';
+    // Method kept for backward compatibility but always returns false
+    // Subscription status is managed by RevenueCat, not Firebase
+    debugPrint('⚠️ WARNING: hasActiveSubscription() is deprecated. Use RevenueCatProvider.hasAccess instead.');
+    return false;
   }
 }

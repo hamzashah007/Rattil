@@ -10,7 +10,27 @@ class PackageCard extends StatefulWidget {
   final int delay;
   final VoidCallback? onEnroll;
   final bool isLoading;
-  const PackageCard({Key? key, required this.package, required this.delay, this.onEnroll, this.isLoading = false}) : super(key: key);
+  final bool hasAccess;
+  final String? primaryButtonLabel;
+  final String? secondaryButtonLabel;
+  final VoidCallback? onPrimaryButtonTap;
+  final VoidCallback? onSecondaryButtonTap;
+  final bool isDashboardMode;
+  final Widget? subscriptionDetailsWidget;
+  const PackageCard({
+    Key? key,
+    required this.package,
+    required this.delay,
+    this.onEnroll,
+    this.isLoading = false,
+    this.hasAccess = false,
+    this.primaryButtonLabel,
+    this.secondaryButtonLabel,
+    this.onPrimaryButtonTap,
+    this.onSecondaryButtonTap,
+    this.isDashboardMode = false,
+    this.subscriptionDetailsWidget,
+  }) : super(key: key);
 
   @override
   State<PackageCard> createState() => _PackageCardState();
@@ -53,7 +73,7 @@ class _PackageCardState extends State<PackageCard> with SingleTickerProviderStat
       case 'Premium Intensive':
         gradient = [Color(0xFFFFE0B2), Color(0xFFFFA726)]; // Soft Orange to Amber
         break;
-      case 'Intermediate Package':
+      case 'Intermediate':
         gradient = [Color(0xFF3949AB), Color(0xFF90CAF9)]; // Indigo to Light Blue
         break;
       case 'Basic Recitation':
@@ -154,120 +174,229 @@ class _PackageCardState extends State<PackageCard> with SingleTickerProviderStat
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      pkg.name,
-                                      style: TextStyle(
-                                        fontSize: 28,
-                                        fontWeight: FontWeight.bold,
-                                        
-                                        height: 1,
-                                        letterSpacing: -1,
-                                        wordSpacing: -2,
-                                      ),
+                          // Dashboard mode: Show name below icon (already shown in header)
+                          if (widget.isDashboardMode) ...[
+                            // Name is shown below the gradient header
+                            Center(
+                              child: Column(
+                                children: [
+                                  Text(
+                                    pkg.name,
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                      color: textColor,
+                                      height: 1.2,
                                     ),
-                                    const SizedBox(height: 8),
-                                    Text('\$${pkg.price}', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF0d9488), height: 1)),
-                                    Text('per month', style: TextStyle(fontSize: 14, color: subtitleColor)),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          // Course Details Box
-                          Container(
-                            decoration: BoxDecoration(
-                              color: detailBoxBg,
-                              borderRadius: BorderRadius.circular(12),
                             ),
-                            padding: const EdgeInsets.all(16),
-                            margin: const EdgeInsets.only(bottom: 16),
-                            child: Column(
+                            const SizedBox(height: 20),
+                            // Course Details Box in Dashboard Mode (first)
+                            Container(
+                              decoration: BoxDecoration(
+                                color: detailBoxBg,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: const EdgeInsets.all(16),
+                              margin: const EdgeInsets.only(bottom: 16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.schedule, color: Color(0xFF0d9488), size: 18),
+                                      const SizedBox(width: 8),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text('Duration', style: TextStyle(fontSize: 12, color: subtitleColor)),
+                                          Text(pkg.duration, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.menu_book, color: Color(0xFF0d9488), size: 18),
+                                      const SizedBox(width: 8),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text('Session Time', style: TextStyle(fontSize: 12, color: subtitleColor)),
+                                          Text(pkg.time, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Features Section in Dashboard Mode (second)
+                            Text("What's Included:", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
+                            const SizedBox(height: 12),
+                            Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
-                                  children: [
-                                    Icon(Icons.schedule, color: Color(0xFF0d9488), size: 18),
-                                    const SizedBox(width: 8),
-                                    Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text('Duration', style: TextStyle(fontSize: 12, color: subtitleColor)),
-                                        Text(pkg.duration, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  children: [
-                                    Icon(Icons.menu_book, color: Color(0xFF0d9488), size: 18),
-                                    const SizedBox(width: 8),
-                                    Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text('Session Time', style: TextStyle(fontSize: 12, color: subtitleColor)),
-                                        Text(pkg.time, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                      ],
-                                    ),
-                                  ],
+                                ...pkg.features
+                                  .where((feature) => feature != 'Progress Tracking' && feature != 'Study Materials' && feature != 'One-on-One Sessions' && feature != 'Priority Support' && feature != 'Certificates')
+                                  .map((feature) {
+                                    // Remove any parentheses and their contents
+                                    final cleaned = feature.replaceAll(RegExp(r'\s*\(.*?\)'), '').trim();
+                                    return cleaned.isNotEmpty
+                                      ? Padding(
+                                          padding: const EdgeInsets.only(bottom: 8),
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                width: 20,
+                                                height: 20,
+                                                decoration: BoxDecoration(
+                                                  color: Color(0xFF0d9488),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: Center(
+                                                  child: Icon(Icons.check, color: Color.fromARGB(255, 255, 255, 255), size: 14),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(cleaned, style: TextStyle(fontSize: 14, color: isDarkMode ? Color(0xFFd1d5db) : Color(0xFF374151))),
+                                            ],
+                                          ),
+                                        )
+                                      : SizedBox.shrink();
+                                  })
+                                  .toList(),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+                            // Subscription Details in Dashboard Mode (third, after Duration and What's Included)
+                            if (widget.subscriptionDetailsWidget != null) ...[
+                              widget.subscriptionDetailsWidget!,
+                              const SizedBox(height: 20),
+                            ],
+                          ] else ...[
+                            // Normal mode: Show name and price at top
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        pkg.name,
+                                        style: TextStyle(
+                                          fontSize: 28,
+                                          fontWeight: FontWeight.bold,
+                                          
+                                          height: 1,
+                                          letterSpacing: -1,
+                                          wordSpacing: -2,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text('\$${pkg.price}', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF0d9488), height: 1)),
+                                      Text('per month', style: TextStyle(fontSize: 14, color: subtitleColor)),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
-                          ),
-                          // Features Section
-                          Text("What's Included:", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
-                          const SizedBox(height: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              ...pkg.features
-                                .where((feature) => feature != 'Progress Tracking' && feature != 'Study Materials' && feature != 'One-on-One Sessions' && feature != 'Priority Support' && feature != 'Certificates')
-                                .map((feature) {
-                                  // Remove any parentheses and their contents
-                                  final cleaned = feature.replaceAll(RegExp(r'\s*\(.*?\)'), '').trim();
-                                  return cleaned.isNotEmpty
-                                    ? Padding(
-                                        padding: const EdgeInsets.only(bottom: 8),
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              width: 20,
-                                              height: 20,
-                                              decoration: BoxDecoration(
-                                                color: Color(0xFF0d9488),
-                                                shape: BoxShape.circle,
+                            const SizedBox(height: 16),
+                          ],
+                          // Course Details and Features (only in normal mode)
+                          if (!widget.isDashboardMode) ...[
+                            // Course Details Box
+                            Container(
+                              decoration: BoxDecoration(
+                                color: detailBoxBg,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: const EdgeInsets.all(16),
+                              margin: const EdgeInsets.only(bottom: 16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.schedule, color: Color(0xFF0d9488), size: 18),
+                                      const SizedBox(width: 8),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text('Duration', style: TextStyle(fontSize: 12, color: subtitleColor)),
+                                          Text(pkg.duration, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.menu_book, color: Color(0xFF0d9488), size: 18),
+                                      const SizedBox(width: 8),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text('Session Time', style: TextStyle(fontSize: 12, color: subtitleColor)),
+                                          Text(pkg.time, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Features Section
+                            Text("What's Included:", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
+                            const SizedBox(height: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ...pkg.features
+                                  .where((feature) => feature != 'Progress Tracking' && feature != 'Study Materials' && feature != 'One-on-One Sessions' && feature != 'Priority Support' && feature != 'Certificates')
+                                  .map((feature) {
+                                    // Remove any parentheses and their contents
+                                    final cleaned = feature.replaceAll(RegExp(r'\s*\(.*?\)'), '').trim();
+                                    return cleaned.isNotEmpty
+                                      ? Padding(
+                                          padding: const EdgeInsets.only(bottom: 8),
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                width: 20,
+                                                height: 20,
+                                                decoration: BoxDecoration(
+                                                  color: Color(0xFF0d9488),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: Center(
+                                                  child: Icon(Icons.check, color: Color.fromARGB(255, 255, 255, 255), size: 14),
+                                                ),
                                               ),
-                                              child: Center(
-                                                child: Icon(Icons.check, color: Color.fromARGB(255, 255, 255, 255), size: 14),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(cleaned, style: TextStyle(fontSize: 14, color: isDarkMode ? Color(0xFFd1d5db) : Color(0xFF374151))),
-                                          ],
-                                        ),
-                                      )
-                                    : SizedBox.shrink();
-                                })
-                                .toList(),
-    
-                                
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                          // Enroll Button
+                                              const SizedBox(width: 8),
+                                              Text(cleaned, style: TextStyle(fontSize: 14, color: isDarkMode ? Color(0xFFd1d5db) : Color(0xFF374151))),
+                                            ],
+                                          ),
+                                        )
+                                      : SizedBox.shrink();
+                                  })
+                                  .toList(),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+                          // Primary Button (Subscribe / You have access / Custom)
                           SizedBox(
                             width: double.infinity,
                             child: InkWell(
                               borderRadius: BorderRadius.circular(12),
-                              onTap: widget.isLoading ? null : widget.onEnroll,
+                              onTap: widget.isLoading 
+                                  ? null 
+                                  : (widget.onPrimaryButtonTap ?? widget.onEnroll),
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 200),
                                 curve: Curves.ease,
@@ -286,29 +415,49 @@ class _PackageCardState extends State<PackageCard> with SingleTickerProviderStat
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    widget.isLoading
-                                        ? SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                              color: Colors.white,
-                                              strokeWidth: 2.5,
-                                            ),
-                                          )
-                                        : Text('Subscribe', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                                    if (widget.isLoading)
+                                      SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2.5,
+                                        ),
+                                      )
+                                    else ...[
+                                      if (widget.hasAccess && widget.primaryButtonLabel == null)
+                                        Icon(Icons.check_circle, color: Colors.white, size: 20)
+                                      else if (widget.primaryButtonLabel != null)
+                                        Icon(Icons.picture_as_pdf, color: Colors.white, size: 20),
+                                      if ((widget.hasAccess && widget.primaryButtonLabel == null) || widget.primaryButtonLabel != null) 
+                                        const SizedBox(width: 8),
+                                      Text(
+                                        widget.primaryButtonLabel ?? (widget.hasAccess ? 'You have access' : 'Subscribe'),
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ],
                                     const SizedBox(width: 8),
-                                    Icon(Icons.chevron_right, color: Colors.white, size: 20),
+                                    Icon(
+                                      Icons.chevron_right,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
                                   ],
                                 ),
                               ),
                             ),
                           ),
                           const SizedBox(height: 12),
+                          // Secondary Button (Request Trial / Custom)
                           SizedBox(
                             width: double.infinity,
                             child: InkWell(
                               borderRadius: BorderRadius.circular(12),
-                              onTap: () {
+                              onTap: widget.onSecondaryButtonTap ?? () {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -336,7 +485,14 @@ class _PackageCardState extends State<PackageCard> with SingleTickerProviderStat
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Text('Request Trial', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                                    if (widget.secondaryButtonLabel == 'Customer Center')
+                                      Icon(Icons.settings, color: Colors.white, size: 20),
+                                    if (widget.secondaryButtonLabel == 'Customer Center')
+                                      const SizedBox(width: 8),
+                                    Text(
+                                      widget.secondaryButtonLabel ?? 'Request Trial',
+                                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                                    ),
                                     const SizedBox(width: 8),
                                     Icon(Icons.chevron_right, color: Colors.white, size: 20),
                                   ],

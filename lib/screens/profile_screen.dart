@@ -33,16 +33,11 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
   // General tab controllers
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
-  String? _selectedGender;
   
   // Password tab controllers
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
-  bool _isLoading = false;
-  bool _isPasswordLoading = false;
-  bool _isDeleteLoading = false;
 
   // Avatar color options
   static const List<Color> avatarColors = [
@@ -93,9 +88,10 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     _tabController = TabController(length: 2, vsync: this);
     // Fetch user data from provider if available
     final userProvider = Provider.of<app_auth.AuthProvider>(context, listen: false);
+    final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
     _nameController.text = userProvider.userName ?? widget.userName;
     _emailController.text = userProvider.userEmail ?? widget.userEmail;
-    _selectedGender = widget.userGender;
+    profileProvider.setGender(widget.userGender);
   }
 
   @override
@@ -116,13 +112,14 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       return;
     }
 
-    setState(() => _isLoading = true);
+    final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+    profileProvider.setLoading(true);
 
     try {
       // Update Firestore with merge to handle missing fields
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'name': _nameController.text.trim(),
-        'gender': _selectedGender,
+        'gender': profileProvider.selectedGender,
       }, SetOptions(merge: true));
 
       // Refresh user data in AuthProvider
@@ -131,10 +128,10 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       _showSnackBar('Profile updated successfully!');
     } catch (e) {
       print('Profile update error: $e');
-      _showSnackBar('Failed to update: e.toString()', isError: true);
+      _showSnackBar('Failed to update: ${e.toString()}', isError: true);
     }
 
-    setState(() => _isLoading = false);
+    profileProvider.setLoading(false);
   }
 
   Future<void> _updatePassword() async {
@@ -151,7 +148,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       return;
     }
 
-    setState(() => _isPasswordLoading = true);
+    final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+    profileProvider.setPasswordLoading(true);
 
     try {
       // Re-authenticate user first
@@ -179,7 +177,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       _showSnackBar('Failed to update password', isError: true);
     }
 
-    setState(() => _isPasswordLoading = false);
+    profileProvider.setPasswordLoading(false);
   }
 
   Future<void> _deleteAccount() async {
@@ -188,7 +186,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       _showSnackBar('Please enter your password to confirm.', isError: true);
       return;
     }
-    setState(() => _isDeleteLoading = true);
+    final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+    profileProvider.setDeleteLoading(true);
     final authProvider = Provider.of<app_auth.AuthProvider>(context, listen: false);
     try {
       final result = await authProvider.deleteAccount(password: password, context: context);
@@ -215,7 +214,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       print(stack);
       _showSnackBar('Account deletion failed: ${e.toString()}', isError: true);
     }
-    setState(() => _isDeleteLoading = false);
+    profileProvider.setDeleteLoading(false);
   }
 
   void _showDeleteAccountDialog() {
@@ -242,8 +241,18 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Are you sure you want to delete your account? This action cannot be undone. All your profile data will be deleted and your transaction history will be anonymized for legal compliance.',
+                  'Are you sure you want to permanently delete your account?',
+                  style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'This action cannot be undone. All your profile data will be permanently deleted and your transaction history will be anonymized for legal compliance.',
                   style: TextStyle(color: textColor, fontSize: 15),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'To confirm account deletion, please enter your password below.',
+                  style: TextStyle(color: subtextColor, fontSize: 14, fontStyle: FontStyle.italic),
                 ),
                 const SizedBox(height: 18),
                 TextField(
@@ -421,18 +430,18 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                               children: [
                                 Expanded(
                                   child: GestureDetector(
-                                    onTap: () => setState(() => _selectedGender = 'Male'),
+                                    onTap: () => provider.setGender('Male'),
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(vertical: 14),
                                       decoration: BoxDecoration(
-                                        color: _selectedGender == 'Male' ? accentColor : inputBg,
+                                        color: provider.selectedGender == 'Male' ? accentColor : inputBg,
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Center(
                                         child: Text(
                                           'Male',
                                           style: TextStyle(
-                                            color: _selectedGender == 'Male' ? Colors.white : textColor,
+                                            color: provider.selectedGender == 'Male' ? Colors.white : textColor,
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
@@ -443,18 +452,18 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: GestureDetector(
-                                    onTap: () => setState(() => _selectedGender = 'Female'),
+                                    onTap: () => provider.setGender('Female'),
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(vertical: 14),
                                       decoration: BoxDecoration(
-                                        color: _selectedGender == 'Female' ? accentColor : inputBg,
+                                        color: provider.selectedGender == 'Female' ? accentColor : inputBg,
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Center(
                                         child: Text(
                                           'Female',
                                           style: TextStyle(
-                                            color: _selectedGender == 'Female' ? Colors.white : textColor,
+                                            color: provider.selectedGender == 'Female' ? Colors.white : textColor,
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
@@ -470,7 +479,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                               width: double.infinity,
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(12),
-                                onTap: _isLoading ? null : _updateProfile,
+                                onTap: provider.isLoading ? null : _updateProfile,
                                 child: Container(
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(colors: [Color(0xFF0d9488), Color(0xFF14b8a6)]),
@@ -487,7 +496,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      if (_isLoading)
+                                      if (provider.isLoading)
                                         SizedBox(
                                           width: 20,
                                           height: 20,
@@ -513,7 +522,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                               width: double.infinity,
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(12),
-                                onTap: _isDeleteLoading ? null : _showDeleteAccountDialog,
+                                onTap: provider.isDeleteLoading ? null : _showDeleteAccountDialog,
                                 child: Container(
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(colors: [Color(0xFFEF4444), Color(0xFFDC2626)]),
@@ -530,7 +539,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      if (_isDeleteLoading)
+                                      if (provider.isDeleteLoading)
                                         SizedBox(
                                           width: 20,
                                           height: 20,
@@ -633,7 +642,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                               width: double.infinity,
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(12),
-                                onTap: _isPasswordLoading ? null : _updatePassword,
+                                onTap: provider.isPasswordLoading ? null : _updatePassword,
                                 child: Container(
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(colors: [Color(0xFF0d9488), Color(0xFF14b8a6)]),
@@ -650,7 +659,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      if (_isPasswordLoading)
+                                      if (provider.isPasswordLoading)
                                         SizedBox(
                                           width: 20,
                                           height: 20,

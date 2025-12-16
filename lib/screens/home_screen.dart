@@ -18,6 +18,7 @@ import 'package:rattil/screens/package_detail_screen.dart';
 import 'package:rattil/screens/transaction_history_screen.dart';
 import 'package:rattil/screens/notifications_screen.dart';
 import 'package:rattil/screens/auth/sign_in.dart';
+import 'package:rattil/providers/revenuecat_provider.dart';
 
 // Method channel for moving app to background
 const platform = MethodChannel('com.rattil.app/background');
@@ -234,6 +235,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   Future.delayed(Duration(milliseconds: 350), () {
                     homeProvider.setSelectedIndex(2);
                   });
+                },
+                onCustomerCenterTap: () {
+                  Provider.of<RevenueCatProvider>(context, listen: false).openCustomerCenter();
                 },
                 userName: authProvider.userName ?? 'User',
                 userEmail: authProvider.userEmail ?? '',

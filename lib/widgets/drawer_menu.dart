@@ -10,6 +10,7 @@ class DrawerMenu extends StatelessWidget {
   final Function(String route) handleNavigation;
   final VoidCallback handleLogout;
   final VoidCallback? onProfileTap;
+  final VoidCallback? onCustomerCenterTap;
   final String userName;
   final String userEmail;
   final String? userAvatarUrl;
@@ -21,6 +22,7 @@ class DrawerMenu extends StatelessWidget {
     required this.handleNavigation,
     required this.handleLogout,
     this.onProfileTap,
+    this.onCustomerCenterTap,
     required this.userName,
     required this.userEmail,
     this.userAvatarUrl,
@@ -188,6 +190,20 @@ class DrawerMenu extends StatelessWidget {
                       onTap: () {
                         HapticFeedback.lightImpact();
                         handleNavigation('/rate');
+                      },
+                      textColor: textColor,
+                      hoverBg: hoverBg,
+                    ),
+                    _buildMenuItem(
+                      context,
+                      icon: Icons.settings,
+                      text: 'Customer Center',
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        closeDrawer();
+                        if (onCustomerCenterTap != null) {
+                          onCustomerCenterTap!();
+                        }
                       },
                       textColor: textColor,
                       hoverBg: hoverBg,

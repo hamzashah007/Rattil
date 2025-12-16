@@ -6,7 +6,7 @@
 
 ## 📊 Collections Overview (2 Total)
 
-### 1. **users** (User Profile Data)
+### 1. **users** (User Profile Data Only)
 ```javascript
 users/{userId}
 {
@@ -16,12 +16,17 @@ users/{userId}
   "uid": "string",
   "createdAt": "timestamp",
   "lastUpdatedAt": "timestamp",
-  "avatarUrl": "string|null",
-  "subscriptionStatus": "active|inactive|trial|cancelled",
-  "currentPackage": "string|null",
-  "enrollmentDate": "timestamp|null"
+  "avatarUrl": "string|null"
+  // ❌ Subscription data NOT stored here - use RevenueCat instead
 }
 ```
+
+**⚠️ Important:** Subscription status is **NOT** stored in Firebase. 
+- **RevenueCat** is the source of truth for all subscription data
+- Use `RevenueCatProvider` to check subscription status:
+  - `revenueCat.hasAccess` - Check if user has active subscription
+  - `revenueCat.subscribedProductId` - Get current package ID
+  - `revenueCat.customerInfo` - Full subscription details
 
 ### 2. **transactions** (Payment & Subscription History)
 ```javascript
@@ -125,15 +130,12 @@ FirestoreHelpers.updateTransactionStatus(
 // Get user's transaction history
 final transactions = await FirestoreHelpers.getUserTransactions(user.uid);
 
-// Check subscription status
-final hasActive = await FirestoreHelpers.hasActiveSubscription(user.uid);
-
-// Update user subscription
-FirestoreHelpers.updateUserSubscription(
-  userId: user.uid,
-  subscriptionStatus: 'active',
-  currentPackage: 'Premium Intensive',
-);
+// ⚠️ DEPRECATED: Do NOT use these methods for subscription status
+// Use RevenueCatProvider instead:
+final revenueCat = context.read<RevenueCatProvider>();
+final hasAccess = revenueCat.hasAccess; // Check subscription access
+final subscribedProductId = revenueCat.subscribedProductId; // Get current package
+final customerInfo = revenueCat.customerInfo; // Full subscription details
 ```
 
 ---
@@ -195,4 +197,47 @@ Since Rattil provides **online classes conducted by instructors**:
 3. **Scalable**: Easy to query and analyze
 4. **Audit-Friendly**: Transaction history preserved for legal compliance
 5. **Simple**: Only 2 collections needed (users, transactions) since classes are conducted online
-5. **User Privacy**: All personal data removed, but business data retained
+6. **User Privacy**: All personal data removed, but business data retained
+7. **RevenueCat Integration**: Subscription status managed by RevenueCat (not Firebase)
+
+---
+
+## 🔄 Subscription Management (RevenueCat)
+
+**⚠️ Important:** Subscription status is **NOT** stored in Firebase.
+
+### Use RevenueCat for Subscription Data:
+
+```dart
+// Get RevenueCat provider
+final revenueCat = context.read<RevenueCatProvider>();
+
+// Check if user has active subscription
+final hasAccess = revenueCat.hasAccess;
+
+// Get subscribed package ID (01, 02, 03)
+final subscribedProductId = revenueCat.subscribedProductId;
+
+// Get full customer info
+final customerInfo = revenueCat.customerInfo;
+final entitlement = customerInfo?.entitlements.active['Rattil Packages'];
+final willRenew = entitlement?.willRenew;
+final expiryDate = entitlement?.expirationDate;
+```
+
+### Why RevenueCat Instead of Firebase?
+
+1. **Single Source of Truth**: RevenueCat manages all subscription logic
+2. **Real-time Updates**: Automatic sync with App Store/Play Store
+3. **No Sync Issues**: Avoids duplication and inconsistency
+4. **Better Performance**: No need to query Firebase for subscription status
+5. **Industry Standard**: RevenueCat is designed for subscription management
+
+### What's Stored Where?
+
+| Data Type | Storage Location | Purpose |
+|-----------|-----------------|---------|
+| **Subscription Status** | RevenueCat | Real-time subscription management |
+| **Purchase History** | RevenueCat | Via CustomerInfo.allPurchasedProductIdentifiers |
+| **Transaction Records** | Firebase | Legal compliance, analytics, user history |
+| **User Profile** | Firebase | Name, email, gender (no subscription data) |

@@ -50,6 +50,8 @@ class TrialRequestSuccessScreen extends StatelessWidget {
               Text('Your request for a trial of the ${package.name} package has been received.', style: TextStyle(fontSize: 16, color: subtitleColor), textAlign: TextAlign.center),
               const SizedBox(height: 8),
               Text('You will get a one-day trial class. Our team will contact you soon to schedule your session.', style: TextStyle(fontSize: 14, color: subtitleColor), textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              Text('Note: This is a free trial request form, not a payment. All subscriptions are purchased through Apple In-App Purchase.', style: TextStyle(fontSize: 12, color: subtitleColor, fontStyle: FontStyle.italic), textAlign: TextAlign.center),
               const SizedBox(height: 32),
               ElevatedButton(
                 style: ButtonStyle(

@@ -1,83 +1,302 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:rattil/providers/iap_provider.dart';
+import 'package:rattil/providers/revenuecat_provider.dart';
+import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/models/package.dart';
+import 'package:rattil/utils/constants.dart';
 import 'package:rattil/widgets/package_card.dart';
-import 'package:rattil/widgets/app_bar_widget.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
-import 'package:in_app_purchase/in_app_purchase.dart';
-import 'package:collection/collection.dart';
+import 'package:intl/intl.dart';
 
-class SubscriberDashboardScreen extends StatelessWidget {
+class SubscriberDashboardScreen extends StatefulWidget {
   const SubscriberDashboardScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBarWidget(
-        notificationCount: 0,
-        onMenuTap: () => Scaffold.of(context).openDrawer(),
-        onNotificationTap: () {},
-      ),
-      body: Consumer<IAPProvider>(
-        builder: (context, iapProvider, child) {
-          // Find the purchased package (assuming only one active at a time)
-          final purchased = iapProvider.purchases.firstWhereOrNull(
-            (purchase) => purchase.status == PurchaseStatus.purchased,
-          );
-          if (purchased == null) {
-            return Center(
-              child: Text(
-                'No active subscription. Please purchase a package to unlock content.',
-                style: TextStyle(fontSize: 18),
-                textAlign: TextAlign.center,
-              ),
-            );
-          }
+  State<SubscriberDashboardScreen> createState() => _SubscriberDashboardScreenState();
+}
 
-          // Map purchase to package (assuming productId matches package id)
-          final package = packages.firstWhere(
-            (pkg) => pkg.id.toString().padLeft(2, '0') == purchased.productID,
-            orElse: () => packages.first,
-          );
+class _SubscriberDashboardScreenState extends State<SubscriberDashboardScreen> {
+  bool _hasCheckedAccess = false;
 
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Subscriber Dashboard',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 16),
-                PackageCard(
-                  package: package,
-                  delay: 0,
-                  isLoading: false,
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Downloadable Material:',
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
-                const SizedBox(height: 8),
-                ElevatedButton.icon(
-                  icon: Icon(Icons.picture_as_pdf),
-                  label: Text('View PDF Material'),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => PDFViewerScreen(),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          );
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Refresh customer info to get latest subscription status
+      context.read<RevenueCatProvider>().refreshCustomerInfo();
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Check access after dependencies are available
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final revenueCat = context.read<RevenueCatProvider>();
+      if (!_hasCheckedAccess && !revenueCat.hasAccess) {
+        _hasCheckedAccess = true;
+        debugPrint('⚠️ [SubscriberDashboardScreen] Subscription cancelled - navigating to home');
+        // Navigate to home screen if subscription is cancelled
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    });
+  }
+
+  Widget _buildSubscribedPackageCard(BuildContext context, RevenueCatProvider revenueCat, bool isDarkMode) {
+    // Check if user has access (not cancelled)
+    if (!revenueCat.hasAccess) {
+      debugPrint('⚠️ [SubscriberDashboardScreen] No access - subscription cancelled or expired');
+      return const SizedBox.shrink();
+    }
+    
+    // Get the subscribed product ID
+    final subscribedProductId = revenueCat.subscribedProductId;
+    if (subscribedProductId == null) {
+      debugPrint('⚠️ [SubscriberDashboardScreen] No subscribed product ID found');
+      return const SizedBox.shrink();
+    }
+
+    // Find the package that matches the subscribed product ID
+    Package? subscribedPackage;
+    debugPrint('🔍 [SubscriberDashboardScreen] Looking for package with product ID: $subscribedProductId');
+    debugPrint('   - Available packages in model:');
+    for (final pkg in packages) {
+      debugPrint('     • ${pkg.name} (ID: ${pkg.id})');
+    }
+    
+    try {
+      // Try to parse as integer (handles both "02" and "2")
+      final productIdInt = int.parse(subscribedProductId);
+      debugPrint('   - Parsed product ID as integer: $productIdInt');
+      
+      subscribedPackage = packages.firstWhere(
+        (pkg) {
+          final matches = pkg.id == productIdInt;
+          debugPrint('     - Checking ${pkg.name} (ID: ${pkg.id}) == $productIdInt: $matches');
+          return matches;
         },
+        orElse: () {
+          debugPrint('   ⚠️ No exact match found, trying string comparison...');
+          // Try string comparison as fallback
+          final productIdStr = subscribedProductId.padLeft(2, '0');
+          for (final pkg in packages) {
+            final pkgIdStr = pkg.id.toString().padLeft(2, '0');
+            if (pkgIdStr == productIdStr) {
+              debugPrint('   ✅ Found match via string: ${pkg.name}');
+              return pkg;
+            }
+          }
+          debugPrint('   ❌ No match found, returning null');
+          throw StateError('No matching package found');
+        },
+      );
+    } catch (e) {
+      debugPrint('   ❌ Error parsing/finding package: $e');
+      // Try string-based matching as fallback
+      final productIdStr = subscribedProductId.padLeft(2, '0');
+      debugPrint('   - Trying string-based matching with: $productIdStr');
+      try {
+        subscribedPackage = packages.firstWhere(
+          (pkg) {
+            final pkgIdStr = pkg.id.toString().padLeft(2, '0');
+            final matches = pkgIdStr == productIdStr;
+            debugPrint('     - Checking ${pkg.name} (ID: ${pkg.id.toString().padLeft(2, '0')}) == $productIdStr: $matches');
+            return matches;
+          },
+        );
+        debugPrint('   ✅ Found package via string matching: ${subscribedPackage.name}');
+      } catch (e2) {
+        debugPrint('   ❌ String matching also failed: $e2');
+        subscribedPackage = null;
+      }
+    }
+
+    if (subscribedPackage == null) {
+      return const SizedBox.shrink();
+    }
+
+    // Build subscription details widget
+    final entitlement = revenueCat.customerInfo?.entitlements.active[RevenueCatProvider.entitlementId];
+    final textColor = isDarkMode ? AppConstants.textColorDark : AppConstants.textColor;
+    final subtitleColor = isDarkMode ? AppConstants.subtitleColorDark : AppConstants.subtitleColor;
+    final detailBoxBg = isDarkMode ? AppConstants.detailBoxBgDark : AppConstants.detailBoxBg;
+
+    // Format dates
+    String formatDate(String? dateString) {
+      if (dateString == null || dateString.isEmpty) return '—';
+      try {
+        // RevenueCat dates are in ISO 8601 format
+        final date = DateTime.parse(dateString);
+        return DateFormat('MMM dd, yyyy').format(date);
+      } catch (e) {
+        return dateString; // Return original if parsing fails
+      }
+    }
+
+    final subscriptionDetailsWidget = Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: detailBoxBg,
+        borderRadius: BorderRadius.circular(12),
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Subscription Details',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: textColor,
+            ),
+          ),
+          if (entitlement != null) ...[
+            const SizedBox(height: 12),
+            _DetailRow(
+              label: 'Purchased',
+              value: formatDate(entitlement.latestPurchaseDate),
+              textColor: textColor,
+              subtitleColor: subtitleColor,
+            ),
+            const SizedBox(height: 12),
+            _DetailRow(
+              label: 'Expires',
+              value: formatDate(entitlement.expirationDate),
+              textColor: textColor,
+              subtitleColor: subtitleColor,
+            ),
+            const SizedBox(height: 12),
+            _DetailRow(
+              label: 'Will renew',
+              value: entitlement.willRenew ? 'Yes' : 'No',
+              textColor: textColor,
+              subtitleColor: subtitleColor,
+            ),
+          ],
+        ],
+      ),
+    );
+
+    return PackageCard(
+      package: subscribedPackage,
+      delay: 0,
+      hasAccess: revenueCat.hasAccess,
+      primaryButtonLabel: 'View PDF Material',
+      secondaryButtonLabel: 'Customer Center',
+      onPrimaryButtonTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => PDFViewerScreen(),
+          ),
+        );
+      },
+      onSecondaryButtonTap: revenueCat.isPurchasing
+          ? null
+          : () => revenueCat.openCustomerCenter(),
+      isLoading: false,
+      isDashboardMode: true,
+      subscriptionDetailsWidget: subscriptionDetailsWidget,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+    final bgColor = isDarkMode ? const Color(0xFF111827) : Colors.white;
+    final appBarColor = isDarkMode ? const Color(0xFF1F2937) : Colors.white;
+    final textColor = isDarkMode ? Colors.white : const Color(0xFF111827);
+
+    return Consumer<RevenueCatProvider>(
+      builder: (context, revenueCat, child) {
+        // Check if subscription is cancelled and navigate to home
+        if (!revenueCat.hasAccess && mounted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            debugPrint('⚠️ [SubscriberDashboardScreen] No access detected - navigating to home');
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          });
+        }
+        
+        return Scaffold(
+          backgroundColor: bgColor,
+          appBar: AppBar(
+            backgroundColor: appBarColor,
+            elevation: 0,
+            iconTheme: IconThemeData(color: textColor),
+            title: Text('Subscriber Dashboard', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+          ),
+          body: Container(
+            color: bgColor,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Subtitle
+                  Center(
+                    child: Text(
+                      'Manage your subscription and access',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: textColor,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  // Subscribed Package Card (includes subscription details)
+                  _buildSubscribedPackageCard(context, revenueCat, isDarkMode),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color textColor;
+  final Color subtitleColor;
+
+  const _DetailRow({
+    required this.label,
+    required this.value,
+    required this.textColor,
+    required this.subtitleColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 100,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: subtitleColor,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              color: textColor,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -85,9 +304,16 @@ class SubscriberDashboardScreen extends StatelessWidget {
 class PDFViewerScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.isDarkMode;
+    final appBarColor = isDarkMode ? AppConstants.cardBgDark : AppConstants.cardBg;
+    final textColor = isDarkMode ? AppConstants.textColorDark : AppConstants.textColor;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('PDF Material'),
+        title: Text('PDF Material', style: TextStyle(color: textColor)),
+        backgroundColor: appBarColor,
+        iconTheme: IconThemeData(color: textColor),
       ),
       body: SfPdfViewer.asset('assets/pdf/rattil_app_testing.pdf'),
     );
