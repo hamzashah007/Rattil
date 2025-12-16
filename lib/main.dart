@@ -4,6 +4,7 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:rattil/providers/auth_provider.dart';
 import 'package:rattil/providers/drawer_provider.dart';
+import 'package:rattil/providers/profile_provider.dart';
 import 'package:rattil/providers/revenuecat_provider.dart';
 import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/screens/splashscreen.dart';
@@ -35,6 +36,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => DrawerProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => ProfileProvider()),
         ChangeNotifierProvider(create: (_) => RevenueCatProvider()..start()),
       ],
       child: Consumer<ThemeProvider>(

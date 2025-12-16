@@ -91,7 +91,10 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
     _nameController.text = userProvider.userName ?? widget.userName;
     _emailController.text = userProvider.userEmail ?? widget.userEmail;
-    profileProvider.setGender(widget.userGender);
+    // Defer setGender to avoid calling notifyListeners during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      profileProvider.setGender(widget.userGender);
+    });
   }
 
   @override
@@ -311,11 +314,9 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     final accentColor = ThemeColors.primaryTeal;
     final inputBg = isDarkMode ? Color(0xFF374151) : Color(0xFFF3F4F6);
 
-    return ChangeNotifierProvider<ProfileProvider>(
-      create: (_) => ProfileProvider(),
-      child: Consumer<ProfileProvider>(
-        builder: (context, provider, _) {
-          return Scaffold(
+    return Consumer<ProfileProvider>(
+      builder: (context, provider, _) {
+        return Scaffold(
             backgroundColor: bgColor,
             body: _tabController == null
                 ? Center(child: CircularProgressIndicator(color: accentColor))
@@ -559,7 +560,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 48), // Increased padding below Delete Account button
+                            const SizedBox(height: 55), // Increased padding below Delete Account button
                             // Add extra padding to avoid overlap with navbar
                             SizedBox(height: 32),
                           ],
@@ -689,8 +690,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
               ],
             ),
           );
-        },
-      ),
+      },
     );
   }
 }

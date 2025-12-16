@@ -103,11 +103,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
 				context: context,
 			);
 			if (error == null && mounted) {
-				// Show success message and go back to sign in page
+				// Show success message with email verification notice
 				AppSnackbar.showSuccess(
 					context,
 					title: 'Account Created!',
-					message: 'Your account has been created successfully. Please sign in.',
+					message: 'Verification email sent! Please check your email and verify your account before signing in.',
 				);
 				Navigator.pop(context);
 			} else if (error != null && mounted) {

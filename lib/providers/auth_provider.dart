@@ -64,6 +64,10 @@ class AuthProvider extends ChangeNotifier {
         email: email.trim(),
         password: password.trim(),
       );
+      
+      // Send email verification
+      await credential.user!.sendEmailVerification();
+      
       await FirebaseFirestore.instance.collection('users').doc(credential.user!.uid).set({
         'name': name.trim(),
         'email': email.trim(),
@@ -102,10 +106,21 @@ class AuthProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email.trim(),
         password: password.trim(),
       );
+      
+      // Check if email is verified
+      final user = credential.user;
+      if (user != null && !user.emailVerified) {
+        // Resend verification email
+        await user.sendEmailVerification();
+        _isLoading = false;
+        notifyListeners();
+        return 'Please verify your email address. A verification link has been sent to your email.';
+      }
+      
       await fetchUserData(); // Fetch user data after login
       _isLoading = false;
       notifyListeners();
