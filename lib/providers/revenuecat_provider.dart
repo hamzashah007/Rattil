@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,7 +10,7 @@ import 'package:rattil/utils/firestore_helpers.dart';
 
 /// Centralized RevenueCat state: offerings, purchases, entitlement access.
 /// Follows RevenueCat best practices: dynamic paywalls using offerings and packages.
-class RevenueCatProvider extends ChangeNotifier {
+class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
   static const apiKey = 'appl_pMSdZUXXAVlzGeftesHFTwvEsiu';
   static const entitlementId = 'Rattil Packages';
 
@@ -22,11 +24,16 @@ class RevenueCatProvider extends ChangeNotifier {
   // Temporary storage for recently purchased product ID (until RevenueCat server syncs)
   String? _recentlyPurchasedProductId;
   DateTime? _recentPurchaseTime;
+  
+  // Periodic refresh timer for keeping data in sync
+  Timer? _periodicRefreshTimer;
 
   CustomerInfo? get customerInfo => _customerInfo;
   Offerings? get offerings => _offerings;
   
-  /// Check if user has active access. Returns false if subscription is cancelled (willRenew = false).
+  /// Check if user has active access. 
+  /// Returns true if subscription is not expired (even if cancelled).
+  /// Follows Apple guidelines: cancelled subscriptions remain active until billing period ends.
   bool get hasAccess {
     final entitlement = _customerInfo?.entitlements.active[entitlementId];
     if (entitlement == null) {
@@ -34,9 +41,36 @@ class RevenueCatProvider extends ChangeNotifier {
       return false;
     }
     
-    // If willRenew is false, subscription is cancelled - no access
+    // IMPORTANT: Check expiration date first (Apple guidelines compliance)
+    // Even if willRenew = false (cancelled), user should have access until expiration
+    if (entitlement.expirationDate != null && entitlement.expirationDate!.isNotEmpty) {
+      try {
+        final expirationDate = DateTime.parse(entitlement.expirationDate!);
+        final now = DateTime.now();
+        
+        // If subscription has expired, no access
+        if (expirationDate.isBefore(now)) {
+          debugPrint('⚠️ [RevenueCatProvider] Subscription expired on $expirationDate - denying access');
+          return false;
+        }
+        
+        // If subscription is not expired, grant access (even if willRenew = false)
+        if (!entitlement.willRenew) {
+          debugPrint('ℹ️ [RevenueCatProvider] Subscription cancelled but still valid until $expirationDate - granting access');
+        } else {
+          debugPrint('✅ [RevenueCatProvider] Active subscription found - granting access');
+        }
+        return true;
+      } catch (e) {
+        debugPrint('⚠️ [RevenueCatProvider] Could not parse expiration date: $e');
+        // Fallback to willRenew if date parsing fails
+      }
+    }
+    
+    // Fallback: Use willRenew if expiration date not available
+    // This handles edge cases where expiration date might not be set
     if (!entitlement.willRenew) {
-      debugPrint('⚠️ [RevenueCatProvider] Subscription cancelled (willRenew = false) - denying access');
+      debugPrint('⚠️ [RevenueCatProvider] Subscription cancelled (willRenew = false) and no expiration date - denying access');
       return false;
     }
     
@@ -54,6 +88,46 @@ class RevenueCatProvider extends ChangeNotifier {
   /// Check if offerings are loaded and current offering has packages.
   bool get hasAvailablePackages => availablePackages.isNotEmpty;
 
+  /// Check if a specific product ID (01, 02, 03) exists in the current offering.
+  /// Useful for debugging why a package might not be found.
+  bool isProductInOfferings(String productId) {
+    if (_offerings?.current == null) {
+      debugPrint('⚠️ [RevenueCatProvider] No offerings available to check product: $productId');
+      return false;
+    }
+    
+    final normalizedId = productId.padLeft(2, '0');
+    debugPrint('🔍 [RevenueCatProvider] Checking if product $normalizedId exists in offerings...');
+    
+    for (final pkg in _offerings!.current!.availablePackages) {
+      final pkgId = pkg.storeProduct.identifier;
+      debugPrint('   - Checking: $pkgId');
+      
+      // Exact match
+      if (pkgId == normalizedId || pkgId == productId) {
+        debugPrint('   ✅ Found exact match: $pkgId');
+        return true;
+      }
+      
+      // Numeric extraction match
+      final numericMatch = RegExp(r'(\d+)').firstMatch(pkgId);
+      if (numericMatch != null) {
+        final extracted = numericMatch.group(1)?.padLeft(2, '0');
+        if (extracted == normalizedId) {
+          debugPrint('   ✅ Found numeric match: $pkgId → $extracted');
+          return true;
+        }
+      }
+    }
+    
+    debugPrint('   ❌ Product $normalizedId NOT found in offerings');
+    debugPrint('   📋 Available product IDs:');
+    for (final pkg in _offerings!.current!.availablePackages) {
+      debugPrint('     • ${pkg.storeProduct.identifier}');
+    }
+    return false;
+  }
+
   /// Get the product identifier of the currently subscribed package.
   /// Returns null if user doesn't have access or product ID cannot be determined.
   /// 
@@ -67,10 +141,33 @@ class RevenueCatProvider extends ChangeNotifier {
       return null;
     }
     
-    // If willRenew is false, subscription is cancelled - return null
-    if (!entitlement.willRenew) {
-      debugPrint('⚠️ [RevenueCatProvider] Subscription cancelled (willRenew = false) - no product ID');
-      return null;
+    // IMPORTANT: Check expiration date instead of just willRenew
+    // User should have product ID until subscription expires (Apple guidelines)
+    if (entitlement.expirationDate != null && entitlement.expirationDate!.isNotEmpty) {
+      try {
+        final expirationDate = DateTime.parse(entitlement.expirationDate!);
+        if (expirationDate.isBefore(DateTime.now())) {
+          debugPrint('⚠️ [RevenueCatProvider] Subscription expired - no product ID');
+          return null;
+        }
+        // Continue to find product ID even if willRenew = false
+        if (!entitlement.willRenew) {
+          debugPrint('ℹ️ [RevenueCatProvider] Subscription cancelled but still valid until $expirationDate - finding product ID');
+        }
+      } catch (e) {
+        debugPrint('⚠️ [RevenueCatProvider] Could not parse expiration date: $e');
+        // Fallback: if willRenew is false and no expiration date, return null
+        if (!entitlement.willRenew) {
+          debugPrint('⚠️ [RevenueCatProvider] Subscription cancelled (willRenew = false) and no expiration date - no product ID');
+          return null;
+        }
+      }
+    } else {
+      // No expiration date available, use willRenew as fallback
+      if (!entitlement.willRenew) {
+        debugPrint('⚠️ [RevenueCatProvider] Subscription cancelled (willRenew = false) and no expiration date - no product ID');
+        return null;
+      }
     }
     
     debugPrint('🔍 [RevenueCatProvider] Finding subscribed product ID...');
@@ -87,14 +184,16 @@ class RevenueCatProvider extends ChangeNotifier {
       final timeSincePurchase = DateTime.now().difference(_recentPurchaseTime!);
       debugPrint('   - Time since purchase: ${timeSincePurchase.inSeconds}s (${timeSincePurchase.inMinutes} minutes)');
       
-      // Use temporary product ID if purchase was within last 10 minutes (increased from 5)
-      if (timeSincePurchase.inMinutes < 10) {
+      // Use temporary product ID if purchase was within last 2 hours
+      // OPTIMIZED: Reduced from 24 hours to 2 hours for faster cleanup
+      // RevenueCat usually syncs within minutes, so 2 hours is sufficient
+      if (timeSincePurchase.inHours < 2) {
         debugPrint('   💾 Using recently purchased product ID (not yet synced): $_recentlyPurchasedProductId');
         debugPrint('   ✅ Returning temporary product ID: $_recentlyPurchasedProductId');
         return _recentlyPurchasedProductId;
       } else {
         // Clear if too old (probably won't sync)
-        debugPrint('   ⚠️ Recent purchase too old (${timeSincePurchase.inMinutes} minutes), clearing temporary storage');
+        debugPrint('   ⚠️ Recent purchase too old (${timeSincePurchase.inHours} hours), clearing temporary storage');
         _recentlyPurchasedProductId = null;
         _recentPurchaseTime = null;
       }
@@ -102,19 +201,83 @@ class RevenueCatProvider extends ChangeNotifier {
       debugPrint('   ℹ️ No temporary storage found');
     }
     
-    // SECOND: Check activeSubscriptions to get the actual purchased product ID
-    // This is more reliable than entitlement.productIdentifier when multiple products share the same entitlement
+    // SECOND: Check ALL entitlements (active and inactive) to find the LATEST purchase
+    // This ensures we always get the most recent subscription, even if RevenueCat hasn't fully synced
     final activeSubscriptions = _customerInfo?.activeSubscriptions ?? [];
     debugPrint('   - Active subscriptions count: ${activeSubscriptions.length}');
     
-    // If multiple subscriptions, we need to find the LATEST/MOST RECENT one
-    // Check all entitlements to find the one with the latest purchase date
+    // IMPORTANT: Check ALL entitlements (not just active) to find the latest purchase date
+    // This handles cases where RevenueCat hasn't fully synced the latest purchase
     String? actualProductId;
     DateTime? latestPurchaseDate;
     
-    // Look for product IDs in active subscriptions (01, 02, 03)
-    // Handle different formats: "01", "1", "com.rattil.01", "intermediate_02", etc.
-    for (final subscriptionId in activeSubscriptions) {
+    // FIRST: Check all entitlements to find the one with the LATEST purchase date
+    debugPrint('   🔍 Checking ALL entitlements for latest purchase date...');
+    for (final entitlementEntry in _customerInfo!.entitlements.all.entries) {
+      final ent = entitlementEntry.value;
+      if (!ent.isActive) continue; // Only check active entitlements
+      
+      final productId = ent.productIdentifier;
+      debugPrint('     - Checking entitlement: ${ent.identifier}, product: $productId');
+      
+      String? foundProductId;
+      
+      // Extract product ID from entitlement's productIdentifier
+      if (['01', '02', '03', '1', '2', '3'].contains(productId)) {
+        foundProductId = productId.padLeft(2, '0');
+      } else {
+        final numericMatch = RegExp(r'(\d+)').firstMatch(productId);
+        if (numericMatch != null) {
+          final extractedNumber = numericMatch.group(1);
+          if (extractedNumber != null) {
+            final num = int.tryParse(extractedNumber);
+            if (num != null && num >= 1 && num <= 3) {
+              foundProductId = extractedNumber.padLeft(2, '0');
+            }
+          }
+        }
+        
+        // Fallback: Check by name keywords
+        if (foundProductId == null) {
+          final lowerId = productId.toLowerCase();
+          if (lowerId.contains('basic') || lowerId.contains('01') || lowerId.contains('recitation')) {
+            foundProductId = '01';
+          } else if (lowerId.contains('intermediate') || lowerId.contains('02')) {
+            foundProductId = '02';
+          } else if (lowerId.contains('premium') || lowerId.contains('intensive') || lowerId.contains('03')) {
+            foundProductId = '03';
+          }
+        }
+      }
+      
+      if (foundProductId != null && ['01', '02', '03'].contains(foundProductId)) {
+        try {
+          final purchaseDate = DateTime.parse(ent.latestPurchaseDate);
+          debugPrint('       - Purchase date for $foundProductId: $purchaseDate');
+          
+          // Always use the LATEST purchase date
+          if (latestPurchaseDate == null || purchaseDate.isAfter(latestPurchaseDate)) {
+            latestPurchaseDate = purchaseDate;
+            actualProductId = foundProductId;
+            debugPrint('       ✅ Updated to LATEST product ID: $actualProductId (purchased: $purchaseDate)');
+          }
+        } catch (e) {
+          debugPrint('       ⚠️ Could not parse purchase date: $e');
+          // If date parsing fails, still use this product ID if we don't have one yet
+          if (actualProductId == null) {
+            actualProductId = foundProductId;
+            debugPrint('       ✅ Using product ID (date parsing failed): $actualProductId');
+          }
+        }
+      }
+    }
+    
+    // SECOND: If not found in entitlements, check activeSubscriptions as fallback
+    if (actualProductId == null) {
+      debugPrint('   🔍 Checking activeSubscriptions as fallback...');
+      // Look for product IDs in active subscriptions (01, 02, 03)
+      // Handle different formats: "01", "1", "com.rattil.01", "intermediate_02", etc.
+      for (final subscriptionId in activeSubscriptions) {
       debugPrint('     - Checking subscription: $subscriptionId');
       
       String? foundProductId;
@@ -189,9 +352,10 @@ class RevenueCatProvider extends ChangeNotifier {
           debugPrint('       ✅ Using first found product ID: $actualProductId');
         }
       }
+      }
     }
     
-    // SECOND: If not found in activeSubscriptions, try entitlement.productIdentifier
+    // THIRD: If not found in entitlements or activeSubscriptions, try entitlement.productIdentifier
     if (actualProductId == null) {
       debugPrint('   - Product ID not found in activeSubscriptions, trying entitlement.productIdentifier...');
       final productId = entitlement.productIdentifier;
@@ -474,16 +638,54 @@ class RevenueCatProvider extends ChangeNotifier {
 
   RevenueCatProvider() {
     _customerInfoListener = _handleCustomerInfo;
+    // Add app lifecycle observer to refresh customer info when app resumes
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      // App came to foreground - refresh customer info to get latest subscription status
+      debugPrint('🔄 [RevenueCatProvider] App resumed - refreshing customer info and offerings...');
+      // Refresh both customer info and offerings for complete sync
+      _refreshAll().catchError((e) {
+        debugPrint('⚠️ [RevenueCatProvider] Error refreshing on resume: $e');
+      });
+    }
   }
 
   /// Call once after Purchases.configure has run.
   Future<void> start() async {
     if (_started) return;
     _started = true;
+    
+    // Register lifecycle observer for automatic refresh
+    WidgetsBinding.instance.addObserver(this);
+    
     await _refreshAll();
     Purchases.addCustomerInfoUpdateListener(_customerInfoListener);
+    
+    // OPTIMIZED: Start periodic background refresh (every 5 minutes) to keep data in sync
+    _startPeriodicRefresh();
   }
-
+  
+  /// Start periodic background refresh to keep customer info and offerings in sync
+  void _startPeriodicRefresh() {
+    // Cancel existing timer if any
+    _periodicRefreshTimer?.cancel();
+    
+    // Refresh every 5 minutes to keep data synced
+    _periodicRefreshTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
+      if (_started) {
+        debugPrint('🔄 [RevenueCatProvider] Periodic refresh triggered...');
+        refreshCustomerInfo().catchError((e) {
+          debugPrint('⚠️ [RevenueCatProvider] Error in periodic refresh: $e');
+        });
+      }
+    });
+  }
+  
   Future<void> _refreshAll() async {
     isLoading = true;
     errorMessage = null;
@@ -519,15 +721,41 @@ class RevenueCatProvider extends ChangeNotifier {
       if (_offerings?.current != null) {
         debugPrint('   - Current offering ID: ${_offerings!.current!.identifier}');
         debugPrint('   - Available packages: ${_offerings!.current!.availablePackages.length}');
+        
+        // Check specifically for package 03 (Premium Intensive)
+        bool found03 = false;
         for (final pkg in _offerings!.current!.availablePackages) {
           debugPrint('     • Package: ${pkg.identifier}');
           debugPrint('       - Store Product ID: ${pkg.storeProduct.identifier}');
           debugPrint('       - Store Product Title: ${pkg.storeProduct.title}');
           debugPrint('       - Store Product Price: ${pkg.storeProduct.priceString}');
           debugPrint('       - Package Type: ${pkg.packageType}');
+          
+          // Check if this is package 03
+          if (pkg.storeProduct.identifier == '03' || 
+              pkg.storeProduct.identifier == '3' ||
+              pkg.storeProduct.identifier.toLowerCase().contains('premium') ||
+              pkg.storeProduct.identifier.toLowerCase().contains('intensive')) {
+            found03 = true;
+            debugPrint('       ✅ FOUND PACKAGE 03 (Premium Intensive)!');
+          }
+        }
+        
+        if (!found03) {
+          debugPrint('   ⚠️⚠️⚠️ PACKAGE 03 (Premium Intensive) NOT FOUND IN OFFERINGS! ⚠️⚠️⚠️');
+          debugPrint('   💡 Possible issues:');
+          debugPrint('      1. Product "03" not added to current offering in RevenueCat dashboard');
+          debugPrint('      2. Product "03" not linked to entitlement "Rattil Packages"');
+          debugPrint('      3. Product "03" not active in App Store Connect');
+          debugPrint('      4. Product "03" not synced from App Store Connect to RevenueCat');
+          debugPrint('   🔧 Solution: Check RevenueCat Dashboard → Product Catalog → Ensure "03" is in the offering');
+        } else {
+          debugPrint('   ✅ Package 03 (Premium Intensive) is available in offerings');
         }
       } else {
         debugPrint('   ⚠️ No current offering found');
+        debugPrint('   💡 This means no offering is configured in RevenueCat dashboard');
+        debugPrint('   🔧 Solution: Create an offering in RevenueCat Dashboard → Paywalls');
       }
     } catch (e) {
       debugPrint('❌ [RevenueCatProvider] Error refreshing offerings: $e');
@@ -564,6 +792,13 @@ class RevenueCatProvider extends ChangeNotifier {
       debugPrint('   💾 Stored recently purchased product ID: $_recentlyPurchasedProductId');
       debugPrint('   💾 Purchase time: $_recentPurchaseTime');
       
+      // CRITICAL: Immediately notify listeners for optimistic UI update
+      // This ensures UI updates instantly, especially important for Premium Intensive (03)
+      _customerInfo = info; // Update customer info immediately
+      notifyListeners();
+      debugPrint('   🔔 Immediately notified listeners for optimistic UI update');
+      debugPrint('   ✅ UI should now show "You have access" immediately (using temporary storage)');
+      
       // IMPORTANT: RevenueCat server might take a moment to sync the purchase
       // Retry customer info refresh to get the latest purchase
       debugPrint('🔄 [RevenueCatProvider] Verifying purchase sync...');
@@ -592,9 +827,12 @@ class RevenueCatProvider extends ChangeNotifier {
         debugPrint('   ⚠️ Expected product ID not found yet, retrying customer info refresh...');
         debugPrint('   💾 Temporary storage preserved: $_recentlyPurchasedProductId');
         
-        for (int attempt = 1; attempt <= 2; attempt++) {
-          await Future.delayed(Duration(seconds: attempt)); // 1s, 2s delays (much faster)
-          debugPrint('   - Retry attempt $attempt/2...');
+        // OPTIMIZED: Smarter retry with shorter delays (3 attempts, faster sync)
+        // Reduced from 5 attempts (30s total) to 3 attempts (3s total) for better UX
+        for (int attempt = 1; attempt <= 3; attempt++) {
+          // Shorter delays: 500ms, 1s, 1.5s (total 3s instead of 30s)
+          await Future.delayed(Duration(milliseconds: 500 * attempt));
+          debugPrint('   - Retry attempt $attempt/3 (${500 * attempt}ms delay)...');
           try {
             final refreshedInfo = await Purchases.getCustomerInfo();
             
@@ -676,14 +914,89 @@ class RevenueCatProvider extends ChangeNotifier {
 
   /// Find a RevenueCat package by matching store product identifier.
   /// This matches UI packages (id: 01, 02, 03) to RevenueCat packages.
+  /// Handles multiple formats: "03", "3", "com.rattil.03", "premium_intensive", etc.
   /// Returns null if not found. Best practice: use this to match UI to RevenueCat packages dynamically.
   Package? findPackageByStoreProductId(String storeProductId) {
-    if (_offerings?.current == null) return null;
+    if (_offerings?.current == null) {
+      debugPrint('⚠️ [RevenueCatProvider] No offerings available for package lookup');
+      return null;
+    }
+    
+    debugPrint('🔍 [RevenueCatProvider] Finding package by product ID: $storeProductId');
+    debugPrint('   - Available packages: ${_offerings!.current!.availablePackages.length}');
+    
+    // Normalize the search ID (ensure 2-digit format)
+    final normalizedSearchId = storeProductId.padLeft(2, '0');
+    debugPrint('   - Normalized search ID: $normalizedSearchId');
+    
+    // List all available product IDs for debugging
+    final availableIds = <String>[];
     for (final pkg in _offerings!.current!.availablePackages) {
-      if (pkg.storeProduct.identifier == storeProductId) {
+      availableIds.add(pkg.storeProduct.identifier);
+      debugPrint('     • Available: ${pkg.storeProduct.identifier} (Package: ${pkg.identifier}, Title: ${pkg.storeProduct.title})');
+    }
+    
+    // Method 1: Exact match
+    for (final pkg in _offerings!.current!.availablePackages) {
+      if (pkg.storeProduct.identifier == storeProductId || 
+          pkg.storeProduct.identifier == normalizedSearchId) {
+        debugPrint('   ✅ Found exact match: ${pkg.storeProduct.identifier}');
         return pkg;
       }
     }
+    
+    // Method 2: Extract numeric part and match (handles "com.rattil.03", "product_03", etc.)
+    final numericMatch = RegExp(r'(\d+)').firstMatch(storeProductId);
+    if (numericMatch != null) {
+      final extractedNumber = numericMatch.group(1);
+      if (extractedNumber != null) {
+        final normalizedExtracted = extractedNumber.padLeft(2, '0');
+        debugPrint('   - Extracted numeric ID: $normalizedExtracted');
+        
+        for (final pkg in _offerings!.current!.availablePackages) {
+          final pkgNumericMatch = RegExp(r'(\d+)').firstMatch(pkg.storeProduct.identifier);
+          if (pkgNumericMatch != null) {
+            final pkgExtracted = pkgNumericMatch.group(1);
+            if (pkgExtracted != null && pkgExtracted.padLeft(2, '0') == normalizedExtracted) {
+              debugPrint('   ✅ Found numeric match: ${pkg.storeProduct.identifier}');
+              return pkg;
+            }
+          }
+        }
+      }
+    }
+    
+    // Method 3: Match by package name keywords (for package 03: "premium", "intensive", "03")
+    if (normalizedSearchId == '03') {
+      debugPrint('   - Trying name-based matching for Premium Intensive (03)...');
+      for (final pkg in _offerings!.current!.availablePackages) {
+        final lowerId = pkg.storeProduct.identifier.toLowerCase();
+        final lowerTitle = pkg.storeProduct.title.toLowerCase();
+        
+        // Check if product ID or title contains premium/intensive keywords
+        if (lowerId.contains('premium') || lowerId.contains('intensive') || 
+            lowerId.contains('03') || lowerId.contains('3') ||
+            lowerTitle.contains('premium') || lowerTitle.contains('intensive')) {
+          debugPrint('   ✅ Found name-based match: ${pkg.storeProduct.identifier} (${pkg.storeProduct.title})');
+          return pkg;
+        }
+      }
+    }
+    
+    // Method 4: Match by package index (if packages are in order: 0=01, 1=02, 2=03)
+    try {
+      final packageIndex = int.parse(normalizedSearchId) - 1;
+      if (packageIndex >= 0 && packageIndex < _offerings!.current!.availablePackages.length) {
+        final pkg = _offerings!.current!.availablePackages[packageIndex];
+        debugPrint('   ✅ Found by index match: ${pkg.storeProduct.identifier} (index: $packageIndex)');
+        return pkg;
+      }
+    } catch (e) {
+      debugPrint('   ⚠️ Could not parse package index: $e');
+    }
+    
+    debugPrint('   ❌ No match found for product ID: $storeProductId');
+    debugPrint('   💡 Available product IDs: ${availableIds.join(", ")}');
     return null;
   }
 
@@ -732,10 +1045,21 @@ class RevenueCatProvider extends ChangeNotifier {
   /// 
   /// The prices are correctly fetched, indicating the connection is working.
   /// Only the display names may show incorrectly due to sync/cache issues.
+  /// 
+  /// IMPORTANT: After Customer Center closes, customer info is automatically refreshed
+  /// to ensure UI updates reflect any subscription changes (e.g., plan changes).
   Future<void> openCustomerCenter() async {
     try {
+      debugPrint('🔧 [RevenueCatProvider] Opening Customer Center...');
       await RevenueCatUI.presentCustomerCenter();
+      debugPrint('✅ [RevenueCatProvider] Customer Center closed - refreshing customer info...');
+      
+      // CRITICAL: Refresh customer info immediately after Customer Center closes
+      // This ensures UI updates when user changes plans in Customer Center
+      await refreshCustomerInfo();
+      debugPrint('✅ [RevenueCatProvider] Customer info refreshed after Customer Center close');
     } catch (e) {
+      debugPrint('⚠️ [RevenueCatProvider] Error in Customer Center: $e');
       errorMessage = _friendlyMessageForCode(null, e.toString());
       notifyListeners();
     }
@@ -907,6 +1231,8 @@ class RevenueCatProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _periodicRefreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     Purchases.removeCustomerInfoUpdateListener(_customerInfoListener);
     super.dispose();
   }

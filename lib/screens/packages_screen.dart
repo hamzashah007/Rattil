@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:rattil/models/package.dart';
+import 'package:rattil/models/package.dart' as models;
 import 'package:rattil/providers/packages_provider.dart';
 import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/providers/drawer_provider.dart';
@@ -58,8 +58,8 @@ class _PackagesScreenState extends State<PackagesScreen> {
     _closeDrawer(context);
   }
 
-  List<Package> get filteredPackages {
-    return packages;
+  List<models.Package> get filteredPackages {
+    return models.packages;
   }
 
   @override
@@ -78,7 +78,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
   /// 1. Get offerings (pre-fetched on app launch)
   /// 2. Find matching package from availablePackages dynamically
   /// 3. Purchase the package directly using Apple IAP
-  Future<void> _purchasePackage(BuildContext context, int index, Package uiPackage) async {
+  Future<void> _purchasePackage(BuildContext context, int index, models.Package uiPackage) async {
     debugPrint('🛒 [PackagesScreen] ========== PURCHASE FLOW STARTED ==========');
     debugPrint('📋 [PackagesScreen] Package details:');
     debugPrint('   - Name: ${uiPackage.name}');
@@ -87,6 +87,151 @@ class _PackagesScreenState extends State<PackagesScreen> {
     debugPrint('   - Index: $index');
     
     final revenueCat = context.read<RevenueCatProvider>();
+    
+    // Check if user already has a subscription to a different package
+    if (revenueCat.hasAccess) {
+      final currentSubscribedId = revenueCat.subscribedProductId;
+      final productId = uiPackage.id.toString().padLeft(2, '0');
+      
+      // If user is trying to purchase a different package
+      if (currentSubscribedId != null && currentSubscribedId != productId) {
+        debugPrint('⚠️ [PackagesScreen] User has different subscription - showing warning dialog');
+        
+        // Find current package name for better messaging
+        String currentPackageName = 'your current package';
+        try {
+          final currentPackageIdInt = int.parse(currentSubscribedId);
+          final currentPkg = models.packages.firstWhere(
+            (pkg) => pkg.id == currentPackageIdInt,
+            orElse: () => models.packages.first,
+          );
+          currentPackageName = currentPkg.name;
+        } catch (e) {
+          debugPrint('⚠️ Could not find current package name: $e');
+        }
+        
+        // Show warning dialog
+        if (!mounted) return;
+        final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+        final isDarkMode = themeProvider.isDarkMode;
+        final shouldProceed = await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            // Dialog colors for dark/light mode
+            final dialogBg = isDarkMode ? const Color(0xFF1F2937) : Colors.white;
+            final textColor = isDarkMode ? Colors.white : const Color(0xFF111827);
+            final subtitleColor = isDarkMode ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280);
+            final tealIcon = const Color(0xFF0d9488); // Teal-600 (app primary)
+            final tealBg = isDarkMode ? const Color(0xFF0f766e).withOpacity(0.2) : const Color(0xFFccfbf1); // Teal-100/700 with opacity
+            final tealBorder = isDarkMode ? const Color(0xFF5eead4) : const Color(0xFF5eead4); // Teal-300
+            final tealText = isDarkMode ? const Color(0xFF5eead4) : const Color(0xFF0f766e); // Teal-300/700
+            
+            return AlertDialog(
+              backgroundColor: dialogBg,
+              title: Text(
+                'Switch Package?',
+                style: TextStyle(color: textColor),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'You are currently subscribed to $currentPackageName.',
+                    style: TextStyle(color: textColor),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Purchasing this package will:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: textColor,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.arrow_forward, size: 16, color: tealIcon),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          'Replace your current subscription',
+                          style: TextStyle(color: textColor),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Icon(Icons.arrow_forward, size: 16, color: tealIcon),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          'Cancel your existing package',
+                          style: TextStyle(color: textColor),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Icon(Icons.arrow_forward, size: 16, color: tealIcon),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          'Activate this package immediately',
+                          style: TextStyle(color: textColor),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: tealBg,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: tealBorder, width: 1),
+                    ),
+                    child: Text(
+                      'Note: You can only have one active package at a time.',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: tealText,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(color: subtitleColor),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0d9488),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Switch Package'),
+                ),
+              ],
+            );
+          },
+        );
+        
+        if (shouldProceed != true) {
+          debugPrint('🚫 [PackagesScreen] User cancelled package switch');
+          return; // User cancelled
+        }
+        debugPrint('✅ [PackagesScreen] User confirmed package switch');
+      }
+    }
     
     // Ensure offerings are loaded
     debugPrint('🔍 [PackagesScreen] Checking offerings availability...');
@@ -109,21 +254,39 @@ class _PackagesScreenState extends State<PackagesScreen> {
 
     if (rcPackage == null) {
       debugPrint('❌ [PackagesScreen] Package NOT FOUND in RevenueCat offerings!');
+      debugPrint('   - Package Name: ${uiPackage.name}');
+      debugPrint('   - Package ID: ${uiPackage.id}');
       debugPrint('   - Searched product ID: $productId');
       debugPrint('   - Available packages: ${revenueCat.availablePackages.length}');
       if (revenueCat.availablePackages.isNotEmpty) {
-        debugPrint('   - Available product IDs:');
+        debugPrint('   - Available product IDs in RevenueCat:');
         for (final pkg in revenueCat.availablePackages) {
-          debugPrint('     • ${pkg.storeProduct.identifier} (${pkg.identifier})');
+          debugPrint('     • Product ID: ${pkg.storeProduct.identifier}');
+          debugPrint('       - Package ID: ${pkg.identifier}');
+          debugPrint('       - Title: ${pkg.storeProduct.title}');
+          debugPrint('       - Price: ${pkg.storeProduct.priceString}');
         }
+      } else {
+        debugPrint('   ⚠️ No packages available in RevenueCat offerings!');
+        debugPrint('   💡 This might indicate:');
+        debugPrint('      1. RevenueCat offerings not loaded properly');
+        debugPrint('      2. Product not configured in RevenueCat dashboard');
+        debugPrint('      3. Product not configured in App Store Connect');
+        debugPrint('      4. Network connectivity issue');
       }
       if (!mounted) {
         debugPrint('⚠️  [PackagesScreen] Widget not mounted, aborting...');
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Product not available. Please check your connection and try again.'),
+        SnackBar(
+          content: Text(
+            uiPackage.id == 3 
+              ? 'Premium Intensive package not found in RevenueCat. Please check RevenueCat dashboard configuration.'
+              : 'Product not available. Please check your connection and try again.',
+          ),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 5),
         ),
       );
       debugPrint('🛑 [PackagesScreen] ========== PURCHASE FLOW ABORTED ==========');
@@ -176,36 +339,50 @@ class _PackagesScreenState extends State<PackagesScreen> {
       // Keep purchasing state active until subscription is confirmed
       bool subscriptionActive = false;
       
-      // First, immediately refresh customer info (no delay)
-      debugPrint('   - Immediate refresh (attempt 1/3)...');
-      await revenueCat.refreshCustomerInfo();
+      // OPTIMIZED: Check immediately using temporary storage (no refresh needed)
+      // Temporary storage is set immediately in purchasePackage(), so UI should update instantly
+      debugPrint('   - Checking subscription status immediately (using temporary storage)...');
       
-      // Check immediately
+      // Check immediately without refresh (temporary storage should be available)
       final hasAccessImmediate = revenueCat.hasAccess;
       final isThisPackageSubscribedImmediate = revenueCat.isProductSubscribed(productId);
       debugPrint('   - Immediate check: Has access: $hasAccessImmediate, Is subscribed: $isThisPackageSubscribedImmediate');
       
       if (hasAccessImmediate && isThisPackageSubscribedImmediate) {
         subscriptionActive = true;
-        debugPrint('   ✅ Subscription status confirmed immediately!');
+        debugPrint('   ✅ Subscription status confirmed immediately (using temporary storage)!');
       } else {
-        // If not confirmed, retry with delays
-        for (int attempt = 1; attempt < 3; attempt++) {
-          debugPrint('   - Retry attempt ${attempt + 1}/3, waiting for sync...');
-          await Future.delayed(Duration(milliseconds: 200 * attempt)); // 200ms, 400ms
-          
-          // Refresh customer info to get latest status
-          await revenueCat.refreshCustomerInfo();
-          
-          final hasAccess = revenueCat.hasAccess;
-          final isThisPackageSubscribed = revenueCat.isProductSubscribed(productId);
-          
-          debugPrint('   - Attempt ${attempt + 1}: Has access: $hasAccess, Is subscribed: $isThisPackageSubscribed');
-          
-          if (hasAccess && isThisPackageSubscribed) {
-            subscriptionActive = true;
-            debugPrint('   ✅ Subscription status confirmed!');
-            break;
+        // If not confirmed, refresh and retry with shorter delays (optimized for Premium Intensive)
+        debugPrint('   - Temporary storage not working, refreshing customer info...');
+        await revenueCat.refreshCustomerInfo();
+        
+        // Check again after refresh
+        final hasAccessAfterRefresh = revenueCat.hasAccess;
+        final isThisPackageSubscribedAfterRefresh = revenueCat.isProductSubscribed(productId);
+        debugPrint('   - After refresh: Has access: $hasAccessAfterRefresh, Is subscribed: $isThisPackageSubscribedAfterRefresh');
+        
+        if (hasAccessAfterRefresh && isThisPackageSubscribedAfterRefresh) {
+          subscriptionActive = true;
+          debugPrint('   ✅ Subscription status confirmed after refresh!');
+        } else {
+          // Final retry with minimal delays (optimized for faster UI update)
+          for (int attempt = 1; attempt < 2; attempt++) {
+            debugPrint('   - Final retry attempt ${attempt + 1}/2, waiting for sync...');
+            await Future.delayed(Duration(milliseconds: 100 * attempt)); // 100ms (reduced from 200ms)
+            
+            // Refresh customer info to get latest status
+            await revenueCat.refreshCustomerInfo();
+            
+            final hasAccess = revenueCat.hasAccess;
+            final isThisPackageSubscribed = revenueCat.isProductSubscribed(productId);
+            
+            debugPrint('   - Attempt ${attempt + 1}: Has access: $hasAccess, Is subscribed: $isThisPackageSubscribed');
+            
+            if (hasAccess && isThisPackageSubscribed) {
+              subscriptionActive = true;
+              debugPrint('   ✅ Subscription status confirmed!');
+              break;
+            }
           }
         }
       }
@@ -274,7 +451,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
-    
+
     // Use Consumer to listen to RevenueCat changes for immediate UI updates
     return Consumer<RevenueCatProvider>(
       builder: (context, revenueCat, child) {
@@ -367,8 +544,8 @@ class _PackagesScreenState extends State<PackagesScreen> {
                   
                   return Consumer<PackagesProvider>(
                     builder: (context, packagesProvider, _) => PackageCard(
-                      package: pkg,
-                      delay: index * 100,
+                    package: pkg,
+                    delay: index * 100,
                       hasAccess: isThisPackageSubscribed,
                       onEnroll: isThisPackageSubscribed
                           ? () {

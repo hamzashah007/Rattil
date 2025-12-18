@@ -53,6 +53,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '21739793114',
     projectId: 'rattil-quran-app',
     storageBucket: 'rattil-quran-app.firebasestorage.app',
-    iosBundleId: 'com.example.rattil',
+    iosBundleId: 'com.hexait.rattil',
   );
 }

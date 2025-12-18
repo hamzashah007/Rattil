@@ -142,14 +142,20 @@ class _SubscriberDashboardScreenState extends State<SubscriberDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Subscription Details',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: textColor,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Subscription Details',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                ),
+              ),
+            ],
           ),
+          const SizedBox(height: 16),
           if (entitlement != null) ...[
             const SizedBox(height: 12),
             _DetailRow(
@@ -172,6 +178,50 @@ class _SubscriberDashboardScreenState extends State<SubscriberDashboardScreen> {
               textColor: textColor,
               subtitleColor: subtitleColor,
             ),
+            // Show cancellation warning if subscription is cancelled
+            if (!entitlement.willRenew) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFccfbf1), // Teal-100 (light teal background)
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF5eead4), width: 1.5), // Teal-300 (teal border)
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline, color: const Color(0xFF0d9488), size: 20), // Teal-600 (app primary color)
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Subscription Cancelled',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF0f766e), // Teal-700 (dark teal for text)
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            entitlement.expirationDate != null && entitlement.expirationDate!.isNotEmpty
+                                ? 'Your subscription will remain active until ${formatDate(entitlement.expirationDate)}. You will lose access after that date.'
+                                : 'Your subscription has been cancelled. Access will end when the current billing period expires.',
+                            style: TextStyle(
+                              color: const Color(0xFF134e4a), // Teal-800 (darker teal for body text)
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ],
       ),
