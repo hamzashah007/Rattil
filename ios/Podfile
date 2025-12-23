@@ -40,8 +40,12 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     
-    # Optimize build settings for faster compilation
+    # CRITICAL: Force all pods to use iOS 15.0 deployment target
+    # This fixes "Invalid Binary" errors caused by outdated deployment targets
     target.build_configurations.each do |config|
+      # Set minimum deployment target to 15.0 for all pods
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+      
       # Enable incremental builds
       config.build_settings['COMPILER_INDEX_STORE_ENABLE'] = 'NO'
       

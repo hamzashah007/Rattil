@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:provider/provider.dart';
@@ -18,7 +19,12 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  await Purchases.setLogLevel(LogLevel.debug); // Disable in production
+  // Debug logging disabled for production builds
+  if (kDebugMode) {
+    await Purchases.setLogLevel(LogLevel.debug);
+  } else {
+    await Purchases.setLogLevel(LogLevel.error);
+  }
   final rcConfig = PurchasesConfiguration(_revenuecatApiKey)
     ..appUserID = null
     ..entitlementVerificationMode = EntitlementVerificationMode.informational;

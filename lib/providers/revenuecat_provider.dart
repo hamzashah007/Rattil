@@ -88,7 +88,9 @@ class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// Check if offerings are loaded and current offering has packages.
   bool get hasAvailablePackages => availablePackages.isNotEmpty;
 
-  /// Check if a specific product ID (01, 02, 03) exists in the current offering.
+  /// Check if a specific product ID exists in the current offering.
+  /// Primary format: basic01, intermediate02, premium03 (current App Store Connect subscriptions)
+  /// Fallback format: 01, 02, 03 (for backward compatibility)
   /// Useful for debugging why a package might not be found.
   bool isProductInOfferings(String productId) {
     if (_offerings?.current == null) {
@@ -99,12 +101,30 @@ class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
     final normalizedId = productId.padLeft(2, '0');
     debugPrint('🔍 [RevenueCatProvider] Checking if product $normalizedId exists in offerings...');
     
+    // Map UI IDs to RevenueCat product IDs (PRIMARY: new format from App Store Connect)
+    final productIdMap = {
+      '01': 'basic01',
+      '02': 'intermediate02',
+      '03': 'premium03',
+      '1': 'basic01',
+      '2': 'intermediate02',
+      '3': 'premium03',
+    };
+    
+    // PRIORITY: Check new format first (basic01, intermediate02, premium03), then old format as fallback
+    final expectedProductIds = [
+      productIdMap[normalizedId],  // Primary: new format
+      productIdMap[productId],     // Primary: new format (if productId is "1", "2", "3")
+      normalizedId,                // Fallback: old format
+      productId,                    // Fallback: old format
+    ].where((id) => id != null).cast<String>().toSet();
+    
     for (final pkg in _offerings!.current!.availablePackages) {
       final pkgId = pkg.storeProduct.identifier;
       debugPrint('   - Checking: $pkgId');
       
-      // Exact match
-      if (pkgId == normalizedId || pkgId == productId) {
+      // Exact match with any expected ID
+      if (expectedProductIds.contains(pkgId)) {
         debugPrint('   ✅ Found exact match: $pkgId');
         return true;
       }
@@ -117,6 +137,19 @@ class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
           debugPrint('   ✅ Found numeric match: $pkgId → $extracted');
           return true;
         }
+      }
+      
+      // Name-based match (basic01, intermediate02, premium03)
+      final lowerPkgId = pkgId.toLowerCase();
+      if (normalizedId == '01' && (lowerPkgId.contains('basic') || lowerPkgId.contains('01'))) {
+        debugPrint('   ✅ Found name-based match: $pkgId → 01');
+        return true;
+      } else if (normalizedId == '02' && (lowerPkgId.contains('intermediate') || lowerPkgId.contains('02'))) {
+        debugPrint('   ✅ Found name-based match: $pkgId → 02');
+        return true;
+      } else if (normalizedId == '03' && (lowerPkgId.contains('premium') || lowerPkgId.contains('intensive') || lowerPkgId.contains('03'))) {
+        debugPrint('   ✅ Found name-based match: $pkgId → 03');
+        return true;
       }
     }
     
@@ -223,7 +256,15 @@ class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
       String? foundProductId;
       
       // Extract product ID from entitlement's productIdentifier
-      if (['01', '02', '03', '1', '2', '3'].contains(productId)) {
+      // PRIMARY: Handle new format (basic01, intermediate02, premium03) - current App Store Connect subscriptions
+      // FALLBACK: Handle old format (01, 02, 03) - for backward compatibility
+      if (productId == 'basic01' || productId == 'basic1') {
+        foundProductId = '01';
+      } else if (productId == 'intermediate02' || productId == 'intermediate2') {
+        foundProductId = '02';
+      } else if (productId == 'premium03' || productId == 'premium3') {
+        foundProductId = '03';
+      } else if (['01', '02', '03', '1', '2', '3'].contains(productId)) {
         foundProductId = productId.padLeft(2, '0');
       } else {
         final numericMatch = RegExp(r'(\d+)').firstMatch(productId);
@@ -282,10 +323,21 @@ class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
       
       String? foundProductId;
       
-      // Method 1: Exact match for "01", "02", "03"
-      if (['01', '02', '03', '1', '2', '3'].contains(subscriptionId)) {
+      // Method 1: Exact match
+      // PRIMARY: Check new format first (basic01, intermediate02, premium03) - current App Store Connect subscriptions
+      // FALLBACK: Check old format (01, 02, 03) - for backward compatibility
+      if (subscriptionId == 'basic01' || subscriptionId == 'basic1') {
+        foundProductId = '01';
+        debugPrint('       ✅ Found Basic product ID (new format): 01');
+      } else if (subscriptionId == 'intermediate02' || subscriptionId == 'intermediate2') {
+        foundProductId = '02';
+        debugPrint('       ✅ Found Intermediate product ID (new format): 02');
+      } else if (subscriptionId == 'premium03' || subscriptionId == 'premium3') {
+        foundProductId = '03';
+        debugPrint('       ✅ Found Premium product ID (new format): 03');
+      } else if (['01', '02', '03', '1', '2', '3'].contains(subscriptionId)) {
         foundProductId = subscriptionId.padLeft(2, '0');
-        debugPrint('       ✅ Found exact match product ID: $foundProductId');
+        debugPrint('       ✅ Found exact match product ID (old format): $foundProductId');
       } else {
         // Method 2: Extract numeric part from subscription ID
         // Handles formats like "01", "02", "03", "com.rattil.02", "product_02", etc.
@@ -400,9 +452,20 @@ class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
         String? foundProductId;
         
         // Method 1: Exact match
-        if (['01', '02', '03', '1', '2', '3'].contains(purchasedId)) {
+        // PRIMARY: Check new format first (basic01, intermediate02, premium03) - current App Store Connect subscriptions
+        // FALLBACK: Check old format (01, 02, 03) - for backward compatibility
+        if (purchasedId == 'basic01' || purchasedId == 'basic1') {
+          foundProductId = '01';
+          debugPrint('       ✅ Found Basic product ID (new format): 01');
+        } else if (purchasedId == 'intermediate02' || purchasedId == 'intermediate2') {
+          foundProductId = '02';
+          debugPrint('       ✅ Found Intermediate product ID (new format): 02');
+        } else if (purchasedId == 'premium03' || purchasedId == 'premium3') {
+          foundProductId = '03';
+          debugPrint('       ✅ Found Premium product ID (new format): 03');
+        } else if (['01', '02', '03', '1', '2', '3'].contains(purchasedId)) {
           foundProductId = purchasedId.padLeft(2, '0');
-          debugPrint('       ✅ Found exact match: $foundProductId');
+          debugPrint('       ✅ Found exact match (old format): $foundProductId');
         } else {
           // Method 2: Extract numeric part
           final numericMatches = RegExp(r'(\d+)').allMatches(purchasedId);
@@ -501,10 +564,19 @@ class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
           
           String? foundProductId;
           
-          // Method 1: Exact match
+          // Method 1: Exact match for old format (01, 02, 03) or new format (basic01, intermediate02, premium03)
           if (['01', '02', '03', '1', '2', '3'].contains(purchasedId)) {
             foundProductId = purchasedId.padLeft(2, '0');
             debugPrint('       ✅ Found exact match: $foundProductId');
+          } else if (purchasedId == 'basic01' || purchasedId == 'basic1') {
+            foundProductId = '01';
+            debugPrint('       ✅ Found Basic product ID: 01');
+          } else if (purchasedId == 'intermediate02' || purchasedId == 'intermediate2') {
+            foundProductId = '02';
+            debugPrint('       ✅ Found Intermediate product ID: 02');
+          } else if (purchasedId == 'premium03' || purchasedId == 'premium3') {
+            foundProductId = '03';
+            debugPrint('       ✅ Found Premium product ID: 03');
           } else {
             // Method 2: Extract numeric part
             final numericMatches = RegExp(r'(\d+)').allMatches(purchasedId);
@@ -731,11 +803,14 @@ class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
           debugPrint('       - Store Product Price: ${pkg.storeProduct.priceString}');
           debugPrint('       - Package Type: ${pkg.packageType}');
           
-          // Check if this is package 03
+          // Check if this is package 03 (handles both old format "03" and new format "premium03")
+          final pkgId = pkg.storeProduct.identifier.toLowerCase();
           if (pkg.storeProduct.identifier == '03' || 
               pkg.storeProduct.identifier == '3' ||
-              pkg.storeProduct.identifier.toLowerCase().contains('premium') ||
-              pkg.storeProduct.identifier.toLowerCase().contains('intensive')) {
+              pkg.storeProduct.identifier == 'premium03' ||
+              pkg.storeProduct.identifier == 'premium3' ||
+              pkgId.contains('premium') ||
+              pkgId.contains('intensive')) {
             found03 = true;
             debugPrint('       ✅ FOUND PACKAGE 03 (Premium Intensive)!');
           }
@@ -914,7 +989,8 @@ class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   /// Find a RevenueCat package by matching store product identifier.
   /// This matches UI packages (id: 01, 02, 03) to RevenueCat packages.
-  /// Handles multiple formats: "03", "3", "com.rattil.03", "premium_intensive", etc.
+  /// PRIMARY format: basic01, intermediate02, premium03 (current App Store Connect subscriptions)
+  /// FALLBACK format: 01, 02, 03 (for backward compatibility)
   /// Returns null if not found. Best practice: use this to match UI to RevenueCat packages dynamically.
   Package? findPackageByStoreProductId(String storeProductId) {
     if (_offerings?.current == null) {
@@ -936,16 +1012,34 @@ class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
       debugPrint('     • Available: ${pkg.storeProduct.identifier} (Package: ${pkg.identifier}, Title: ${pkg.storeProduct.title})');
     }
     
-    // Method 1: Exact match
+    // Map UI IDs to RevenueCat product IDs (PRIMARY: new format from App Store Connect)
+    final productIdMap = {
+      '01': ['basic01', 'basic1'],
+      '02': ['intermediate02', 'intermediate2'],
+      '03': ['premium03', 'premium3'],
+    };
+    
+    // PRIORITY: Check new format first (basic01, intermediate02, premium03), then old format as fallback
+    final possibleIds = <String>{};
+    
+    // Add new format IDs first (priority)
+    if (productIdMap.containsKey(normalizedSearchId)) {
+      possibleIds.addAll(productIdMap[normalizedSearchId]!);
+    }
+    
+    // Add old format IDs as fallback
+    possibleIds.add(storeProductId);
+    possibleIds.add(normalizedSearchId);
+    
+    // Method 1: Exact match (PRIORITY: new format first, then old format)
     for (final pkg in _offerings!.current!.availablePackages) {
-      if (pkg.storeProduct.identifier == storeProductId || 
-          pkg.storeProduct.identifier == normalizedSearchId) {
+      if (possibleIds.contains(pkg.storeProduct.identifier)) {
         debugPrint('   ✅ Found exact match: ${pkg.storeProduct.identifier}');
         return pkg;
       }
     }
     
-    // Method 2: Extract numeric part and match (handles "com.rattil.03", "product_03", etc.)
+    // Method 2: Extract numeric part and match (handles "com.rattil.03", "product_03", "premium03", etc.)
     final numericMatch = RegExp(r'(\d+)').firstMatch(storeProductId);
     if (numericMatch != null) {
       final extractedNumber = numericMatch.group(1);
@@ -966,20 +1060,29 @@ class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
       }
     }
     
-    // Method 3: Match by package name keywords (for package 03: "premium", "intensive", "03")
-    if (normalizedSearchId == '03') {
-      debugPrint('   - Trying name-based matching for Premium Intensive (03)...');
-      for (final pkg in _offerings!.current!.availablePackages) {
-        final lowerId = pkg.storeProduct.identifier.toLowerCase();
-        final lowerTitle = pkg.storeProduct.title.toLowerCase();
-        
-        // Check if product ID or title contains premium/intensive keywords
-        if (lowerId.contains('premium') || lowerId.contains('intensive') || 
-            lowerId.contains('03') || lowerId.contains('3') ||
-            lowerTitle.contains('premium') || lowerTitle.contains('intensive')) {
-          debugPrint('   ✅ Found name-based match: ${pkg.storeProduct.identifier} (${pkg.storeProduct.title})');
-          return pkg;
-        }
+    // Method 3: Match by package name keywords (for all packages)
+    debugPrint('   - Trying name-based matching...');
+    for (final pkg in _offerings!.current!.availablePackages) {
+      final lowerId = pkg.storeProduct.identifier.toLowerCase();
+      final lowerTitle = pkg.storeProduct.title.toLowerCase();
+      
+      // Match based on normalized search ID
+      bool matches = false;
+      if (normalizedSearchId == '01') {
+        matches = lowerId.contains('basic') || lowerId.contains('01') || lowerId.contains('1') ||
+                  lowerTitle.contains('basic') || lowerTitle.contains('recitation');
+      } else if (normalizedSearchId == '02') {
+        matches = lowerId.contains('intermediate') || lowerId.contains('02') || lowerId.contains('2') ||
+                  lowerTitle.contains('intermediate');
+      } else if (normalizedSearchId == '03') {
+        matches = lowerId.contains('premium') || lowerId.contains('intensive') || 
+                  lowerId.contains('03') || lowerId.contains('3') ||
+                  lowerTitle.contains('premium') || lowerTitle.contains('intensive');
+      }
+      
+      if (matches) {
+        debugPrint('   ✅ Found name-based match: ${pkg.storeProduct.identifier} (${pkg.storeProduct.title})');
+        return pkg;
       }
     }
     

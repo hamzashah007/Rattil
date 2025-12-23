@@ -40,15 +40,6 @@
 				<string>C617.1</string>
 			</array>
 		</dict>
-		<!-- Firebase Auth uses Active Keychain Item API -->
-		<dict>
-			<key>NSPrivacyAccessedAPIType</key>
-			<string>NSPrivacyAccessedAPICategoryActiveKeychainItem</string>
-			<key>NSPrivacyAccessedAPITypeReasons</key>
-			<array>
-				<string>DDA9.1</string>
-			</array>
-		</dict>
 	</array>
 	<key>NSPrivacyCollectedDataTypes</key>
 	<array>
