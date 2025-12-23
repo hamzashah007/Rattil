@@ -4,15 +4,18 @@ import java.util.Properties
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// Load keystore properties for release signing (stored in android/key.properties)
-val keystorePropertiesFile = rootProject.file("android/key.properties")
+/**
+ * Load keystore properties from android/app/key.properties
+ */
 val keystoreProperties = Properties()
+val keystorePropertiesFile = file("key.properties")
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+} else {
+    throw GradleException("key.properties file not found at ${keystorePropertiesFile.absolutePath}")
 }
 
 android {
@@ -20,7 +23,6 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
-    // Support 16KB page size for Android 15+ devices
     packaging {
         jniLibs {
             useLegacyPackaging = false
@@ -37,31 +39,39 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.hexait.rattil"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    /**
+     * Release signing configuration (required for AAB)
+     */
     signingConfigs {
         create("release") {
-            if (keystoreProperties.isNotEmpty()) {
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-            }
+            val storeFilePath = keystoreProperties["storeFile"] as? String
+                ?: throw GradleException("storeFile is missing in key.properties")
+            val storePassword = keystoreProperties["storePassword"] as? String
+                ?: throw GradleException("storePassword is missing in key.properties")
+            val keyAlias = keystoreProperties["keyAlias"] as? String
+                ?: throw GradleException("keyAlias is missing in key.properties")
+            val keyPassword = keystoreProperties["keyPassword"] as? String
+                ?: throw GradleException("keyPassword is missing in key.properties")
+
+            storeFile = file(storeFilePath)
+            this.storePassword = storePassword
+            this.keyAlias = keyAlias
+            this.keyPassword = keyPassword
         }
     }
 
     buildTypes {
-        release {
-            // Sign release builds with the upload keystore (for Google Play)
+        getByName("release") {
             signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }
