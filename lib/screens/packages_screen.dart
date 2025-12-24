@@ -13,6 +13,7 @@ import 'package:rattil/providers/revenuecat_provider.dart';
 import 'package:rattil/screens/profile_screen.dart';
 import 'package:rattil/providers/auth_provider.dart';
 import 'package:rattil/screens/subscriber_dashboard_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PackagesScreen extends StatefulWidget {
   final bool showAppBar;
@@ -531,36 +532,127 @@ class _PackagesScreenState extends State<PackagesScreen> {
               },
               child: ListView.builder(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 75),
-                itemCount: filteredPackages.length,
+                itemCount: filteredPackages.length + 1, // Add one for compliance widgets
                 itemBuilder: (context, index) {
-                  final pkg = filteredPackages[index];
-                  final productId = pkg.id.toString().padLeft(2, '0');
-                  final isThisPackageSubscribed = revenueCat.isProductSubscribed(productId);
-                  
-                  debugPrint('📋 [PackagesScreen] Building package card $index: ${pkg.name}');
-                  debugPrint('   - Product ID: $productId');
-                  debugPrint('   - Is this package subscribed: $isThisPackageSubscribed');
-                  debugPrint('   - Subscribed product ID: ${revenueCat.subscribedProductId ?? "none"}');
-                  
-                  return Consumer<PackagesProvider>(
-                    builder: (context, packagesProvider, _) => PackageCard(
-                    package: pkg,
-                    delay: index * 100,
-                      hasAccess: isThisPackageSubscribed,
-                      onEnroll: isThisPackageSubscribed
-                          ? () {
-                              debugPrint('👆 [PackagesScreen] Access button tapped for subscribed package - navigating to dashboard');
-                              Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const SubscriberDashboardScreen()),
-                              );
-                            }
-                          : () {
-                              debugPrint('👆 [PackagesScreen] Subscribe button tapped for package: ${pkg.name} (index: $index, productId: $productId)');
-                              _purchasePackage(context, index, pkg);
-                            },
-                      isLoading: revenueCat.isPurchasing && packagesProvider.purchasingIndex == index,
-                    ),
-                  );
+                  if (index < filteredPackages.length) {
+                    final pkg = filteredPackages[index];
+                    final productId = pkg.id.toString().padLeft(2, '0');
+                    final isThisPackageSubscribed = revenueCat.isProductSubscribed(productId);
+                    
+                    debugPrint('📋 [PackagesScreen] Building package card $index: ${pkg.name}');
+                    debugPrint('   - Product ID: $productId');
+                    debugPrint('   - Is this package subscribed: $isThisPackageSubscribed');
+                    debugPrint('   - Subscribed product ID: ${revenueCat.subscribedProductId ?? "none"}');
+                    
+                    return Column(
+                      children: [
+                        Consumer<PackagesProvider>(
+                          builder: (context, packagesProvider, _) => PackageCard(
+                            package: pkg,
+                            delay: index * 100,
+                            hasAccess: isThisPackageSubscribed,
+                            onEnroll: isThisPackageSubscribed
+                                ? () {
+                                    debugPrint('👆 [PackagesScreen] Access button tapped for subscribed package - navigating to dashboard');
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(builder: (_) => const SubscriberDashboardScreen()),
+                                    );
+                                  }
+                                : () {
+                                    debugPrint('👆 [PackagesScreen] Subscribe button tapped for package: ${pkg.name} (index: $index, productId: $productId)');
+                                    _purchasePackage(context, index, pkg);
+                                  },
+                            isLoading: revenueCat.isPurchasing && packagesProvider.purchasingIndex == index,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    );
+                  } else {
+                    // Only show Restore Purchases and legal links once at the end
+                    return Column(
+                      children: [
+                        Consumer<RevenueCatProvider>(
+                          builder: (context, revenueCat, _) {
+                            return SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: revenueCat.isRestoringPurchases
+                                    ? null
+                                    : () async {
+                                        revenueCat.setIsRestoringPurchases(true);
+                                        final info = await revenueCat.restorePurchases();
+                                        revenueCat.setIsRestoringPurchases(false);
+                                        if (!mounted) return;
+                                        if (revenueCat.errorMessage != null) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(revenueCat.errorMessage!),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        } else if (info != null) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: const Text('Purchases restored!'),
+                                              backgroundColor: Color(0xFF0d9488),
+                                            ),
+                                          );
+                                        } else {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: const Text('No purchases to restore.'),
+                                              backgroundColor: Colors.orange,
+                                            ),
+                                          );
+                                        }
+                                      },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF0d9488),
+                                  foregroundColor: Colors.white,
+                                ),
+                                child: revenueCat.isRestoringPurchases
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        ),
+                                      )
+                                    : const Text('Restore Purchases'),
+                              ),
+                            );
+                          },
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            TextButton(
+                              onPressed: () {
+                                launchUrl(Uri.parse('https://yourdomain.com/terms'));
+                              },
+                              style: TextButton.styleFrom(
+                                foregroundColor: Color(0xFF0d9488), // App relevant teal color
+                              ),
+                              child: Text('Terms of Use'),
+                            ),
+                            Text(' | ', style: TextStyle(color: Color(0xFF0d9488))), // Teal separator
+                            TextButton(
+                              onPressed: () {
+                                launchUrl(Uri.parse('https://yourdomain.com/privacy'));
+                              },
+                              style: TextButton.styleFrom(
+                                foregroundColor: Color(0xFF0d9488), // App relevant teal color
+                              ),
+                              child: Text('Privacy Policy'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 32),
+                      ],
+                    );
+                  }
                 },
               ),
             ),

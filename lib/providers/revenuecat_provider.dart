@@ -19,6 +19,7 @@ class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
   bool _started = false;
   bool isLoading = false;
   bool isPurchasing = false;
+  bool isRestoringPurchases = false;
   String? errorMessage;
   
   // Temporary storage for recently purchased product ID (until RevenueCat server syncs)
@@ -680,29 +681,42 @@ class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// Check if a specific product ID (01, 02, 03) is the subscribed product.
   /// Handles both "02" and "2" formats for product IDs.
   bool isProductSubscribed(String productId) {
+    // Normalize productId for comparison
+    final normalizedProductId = productId.padLeft(2, '0');
+
+    // Check optimistic state: recently purchased product (not yet synced)
+    if (_recentlyPurchasedProductId != null && _recentPurchaseTime != null) {
+      final timeSincePurchase = DateTime.now().difference(_recentPurchaseTime!);
+      if (timeSincePurchase.inHours < 2) {
+        // Normalize recently purchased product ID
+        final normalizedRecentId = _recentlyPurchasedProductId!.padLeft(2, '0');
+        if (normalizedRecentId == normalizedProductId ||
+            (int.tryParse(_recentlyPurchasedProductId!) != null &&
+             int.tryParse(productId) != null &&
+             int.parse(_recentlyPurchasedProductId!) == int.parse(productId))) {
+          debugPrint('⚡ [RevenueCatProvider] Optimistic match: $productId == $_recentlyPurchasedProductId');
+          return true;
+        }
+      }
+    }
+
+    // Fallback: check actual subscription
     final subscribedId = subscribedProductId;
     if (subscribedId == null) {
       debugPrint('❌ [RevenueCatProvider] No subscribed product - checking $productId: false');
       return false;
     }
-    
-    // Normalize both IDs to 2-digit strings for comparison
     final normalizedSubscribedId = subscribedId.padLeft(2, '0');
-    final normalizedProductId = productId.padLeft(2, '0');
-    
-    // Also try integer comparison as fallback
     final isSubscribed = normalizedSubscribedId == normalizedProductId ||
         (int.tryParse(subscribedId) != null && 
          int.tryParse(productId) != null && 
          int.parse(subscribedId) == int.parse(productId));
-    
     debugPrint('🔎 [RevenueCatProvider] Checking if $productId is subscribed:');
     debugPrint('   - Subscribed ID (raw): $subscribedId');
     debugPrint('   - Subscribed ID (normalized): $normalizedSubscribedId');
     debugPrint('   - Checking ID (raw): $productId');
     debugPrint('   - Checking ID (normalized): $normalizedProductId');
     debugPrint('   - Match result: $isSubscribed');
-    
     return isSubscribed;
   }
 
@@ -872,7 +886,7 @@ class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
       _customerInfo = info; // Update customer info immediately
       notifyListeners();
       debugPrint('   🔔 Immediately notified listeners for optimistic UI update');
-      debugPrint('   ✅ UI should now show "You have access" immediately (using temporary storage)');
+      debugPrint('   ✅ UI should now show "Go to Dashboard" immediately (using temporary storage)');
       
       // IMPORTANT: RevenueCat server might take a moment to sync the purchase
       // Retry customer info refresh to get the latest purchase
@@ -1229,6 +1243,11 @@ class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   void _handleCustomerInfo(CustomerInfo info) {
     _setCustomerInfo(info);
+  }
+
+  void setIsRestoringPurchases(bool value) {
+    isRestoringPurchases = value;
+    notifyListeners();
   }
 
   String? _friendlyMessageForCode(PurchasesErrorCode? code, String? message) {

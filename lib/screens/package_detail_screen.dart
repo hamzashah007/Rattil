@@ -6,6 +6,7 @@ import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/providers/revenuecat_provider.dart';
 import 'package:rattil/screens/trial_request_success_screen.dart';
 import 'package:rattil/screens/subscriber_dashboard_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PackageDetailScreen extends StatefulWidget {
   final models.Package package;
@@ -343,10 +344,8 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
       if (subscriptionActive) {
         debugPrint('🎉 [PackageDetailScreen] Entitlement is ACTIVE!');
         debugPrint('   - User now has access to Rattil Packages');
-        // Note: RevenueCatProvider.isPurchasing is automatically cleared by purchasePackage()
-        // Force RevenueCat provider to notify listeners for immediate UI update
         await revenueCat.refreshCustomerInfo();
-        // Purchase successful and entitlement is active
+        // Removed setState(); rely on Provider notification
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -354,28 +353,21 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
                 'Subscription activated! Welcome to Rattil.',
                 style: TextStyle(color: Colors.white),
               ),
-              backgroundColor: Color(0xFF0d9488), // Teal color
+              backgroundColor: Color(0xFF0d9488),
               behavior: SnackBarBehavior.floating,
               margin: const EdgeInsets.only(
-                bottom: 60, // Position lower on screen
+                bottom: 60,
                 left: 16,
                 right: 16,
               ),
             ),
           );
         }
-        debugPrint('🏠 [PackageDetailScreen] Navigating back to previous screen...');
-        // Wait a moment for UI to update before navigating
-        await Future.delayed(const Duration(milliseconds: 300));
-        if (mounted) {
-          Navigator.of(context).pop();
-        }
         debugPrint('✅ [PackageDetailScreen] ========== PURCHASE FLOW SUCCESS ==========');
+        // Navigation removed, user stays on this screen
       } else {
         debugPrint('⚠️  [PackageDetailScreen] Purchase completed but subscription status not confirmed after retries');
         debugPrint('   - This might be normal if entitlement is pending activation');
-        // Note: RevenueCatProvider.isPurchasing is automatically cleared by purchasePackage()
-        // Show success message anyway since purchase was successful
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -389,10 +381,8 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
               ),
             ),
           );
-          // Navigate back anyway
-          await Future.delayed(const Duration(milliseconds: 300));
-          Navigator.of(context).pop();
         }
+        // Navigation removed here as well
       }
     } else {
       debugPrint('⚠️  [PackageDetailScreen] Purchase returned null customerInfo');
@@ -554,47 +544,10 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
               ),
             )),
             const SizedBox(height: 24),
-            // Info banner if user has different subscription
-            Consumer<RevenueCatProvider>(
-              builder: (context, revenueCat, _) {
-                final productId = widget.package.id.toString().padLeft(2, '0');
-                final isThisPackageSubscribed = revenueCat.isProductSubscribed(productId);
-                
-                // Show info banner if user has access but to a different package
-                if (revenueCat.hasAccess && !isThisPackageSubscribed) {
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.orange.shade300),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline, color: Colors.orange.shade700, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'You already have an active subscription. Purchasing this package will replace your current subscription.',
-                            style: TextStyle(
-                              color: Colors.orange.shade900,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
-            const SizedBox(height: 8),
             // Subscribe button
             Consumer<RevenueCatProvider>(
               builder: (context, revenueCat, _) {
-                // Get the product ID for this specific package
+                // Always use the UI package ID padded to 2 digits for subscription check
                 final productId = widget.package.id.toString().padLeft(2, '0');
                 final isThisPackageSubscribed = revenueCat.isProductSubscribed(productId);
                 
@@ -608,15 +561,15 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
                 debugPrint('   - hasOfferings: ${revenueCat.offerings != null}');
                 debugPrint('   - availablePackages: ${revenueCat.availablePackages.length}');
                 
-                // If user is subscribed to THIS specific package, show "You have access" button
+                // If user is subscribed to THIS specific package, show "Go to Dashboard" button
                 if (isThisPackageSubscribed) {
-                  debugPrint('✅ [PackageDetailScreen] User is subscribed to THIS package - showing "You have access" button');
+                  debugPrint('✅ [PackageDetailScreen] User is subscribed to THIS package - showing "Go to Dashboard" button');
                   return SizedBox(
                     width: double.infinity,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(12),
                       onTap: () {
-                        debugPrint('🏠 [PackageDetailScreen] "You have access" button tapped - navigating to dashboard');
+                        debugPrint('🏠 [PackageDetailScreen] "Go to Dashboard" button tapped - navigating to dashboard');
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => const SubscriberDashboardScreen(),
@@ -646,7 +599,7 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
                             Icon(Icons.check_circle, color: Colors.white, size: 20),
                             const SizedBox(width: 8),
                             Text(
-                              'You have access',
+                              'Go to Dashboard',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -762,6 +715,75 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
                   ),
                 ),
               ),
+            ),
+            const SizedBox(height: 24),
+            // Restore Purchases Button
+            Consumer<RevenueCatProvider>(
+              builder: (context, revenueCat, _) {
+                final isRestoring = revenueCat.isRestoringPurchases ?? false;
+                return SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: isRestoring
+                        ? null
+                        : () async {
+                            revenueCat.setIsRestoringPurchases(true);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Restoring purchases...')),
+                            );
+                            final result = await revenueCat.restorePurchases();
+                            revenueCat.setIsRestoringPurchases(false);
+                            if (result == true) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Purchases restored successfully!'), backgroundColor: Color(0xFF0d9488)),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('No purchases found or restore failed.'), backgroundColor: Colors.red),
+                              );
+                            }
+                          },
+                    style: TextButton.styleFrom(
+                      foregroundColor: Color(0xFF0d9488),
+                    ),
+                    child: isRestoring
+                        ? SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              color: Color(0xFF0d9488),
+                              strokeWidth: 2.5,
+                            ),
+                          )
+                        : Text('Restore Purchases'),
+                  ),
+                );
+              },
+            ),
+            // Terms of Use and Privacy Policy Links
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TextButton(
+                  onPressed: () {
+                    launchUrl(Uri.parse('https://yourdomain.com/terms'));
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: Color(0xFF0d9488), // App relevant teal color
+                  ),
+                  child: Text('Terms of Use'),
+                ),
+                Text(' | ', style: TextStyle(color: Color(0xFF0d9488))), // Teal separator
+                TextButton(
+                  onPressed: () {
+                    launchUrl(Uri.parse('https://yourdomain.com/privacy'));
+                  },
+                  style: TextButton.styleFrom(
+                    foregroundColor: Color(0xFF0d9488), // App relevant teal color
+                  ),
+                  child: Text('Privacy Policy'),
+                ),
+              ],
             ),
           ],
         ),

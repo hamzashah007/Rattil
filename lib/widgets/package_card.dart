@@ -389,7 +389,7 @@ class _PackageCardState extends State<PackageCard> with SingleTickerProviderStat
                             ),
                             const SizedBox(height: 20),
                           ],
-                          // Primary Button (Subscribe / You have access / Custom)
+                          // Primary Button (Subscribe / Go to Dashboard / Custom)
                           SizedBox(
                             width: double.infinity,
                             child: InkWell(
@@ -432,7 +432,7 @@ class _PackageCardState extends State<PackageCard> with SingleTickerProviderStat
                                       if ((widget.hasAccess && widget.primaryButtonLabel == null) || widget.primaryButtonLabel != null) 
                                         const SizedBox(width: 8),
                                       Text(
-                                        widget.primaryButtonLabel ?? (widget.hasAccess ? 'You have access' : 'Subscribe'),
+                                        widget.primaryButtonLabel ?? (widget.hasAccess ? 'Go to Dashboard' : 'Subscribe'),
                                         style: TextStyle(
                                           color: Colors.white,
                                           fontWeight: FontWeight.bold,
