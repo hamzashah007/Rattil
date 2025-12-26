@@ -308,12 +308,31 @@ class _PackagesScreenState extends State<PackagesScreen> {
     // Force immediate UI update by scheduling a microtask
     await Future.microtask(() {});
     
-    // Purchase using the package directly (best practice)
-    debugPrint('💳 [PackagesScreen] Initiating purchase with RevenueCat...');
-    debugPrint('   - Calling purchasePackage()...');
-    
-    final customerInfo = await revenueCat.purchasePackage(rcPackage);
-    
+    bool didTimeout = false;
+    final purchaseFuture = revenueCat.purchasePackage(rcPackage);
+    final customerInfo = await purchaseFuture.timeout(
+      const Duration(seconds: 20),
+      onTimeout: () {
+        didTimeout = true;
+        return null;
+      },
+    );
+
+    if (didTimeout) {
+      packagesProvider.clearPurchasingIndex();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Purchase timed out. Please check your connection and try again.'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
+          ),
+        );
+      }
+      return;
+    }
+
     debugPrint('📥 [PackagesScreen] Purchase call completed');
     
     if (!mounted) {
@@ -328,7 +347,10 @@ class _PackagesScreenState extends State<PackagesScreen> {
       final packagesProvider = Provider.of<PackagesProvider>(context, listen: false);
       packagesProvider.clearPurchasingIndex();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(revenueCat.errorMessage!)),
+        SnackBar(content: Text(revenueCat.errorMessage!),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
+        ),
       );
       debugPrint('🛑 [PackagesScreen] ========== PURCHASE FLOW FAILED ==========');
     } else if (customerInfo != null) {
@@ -429,7 +451,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
               backgroundColor: Colors.orange,
               behavior: SnackBarBehavior.floating,
               margin: const EdgeInsets.only(
-                bottom: 100,
+                bottom: 60,
                 left: 16,
                 right: 16,
               ),
@@ -574,54 +596,56 @@ class _PackagesScreenState extends State<PackagesScreen> {
                       children: [
                         Consumer<RevenueCatProvider>(
                           builder: (context, revenueCat, _) {
-                            return SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                onPressed: revenueCat.isRestoringPurchases
-                                    ? null
-                                    : () async {
-                                        revenueCat.setIsRestoringPurchases(true);
-                                        final info = await revenueCat.restorePurchases();
-                                        revenueCat.setIsRestoringPurchases(false);
-                                        if (!mounted) return;
-                                        if (revenueCat.errorMessage != null) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text(revenueCat.errorMessage!),
-                                              backgroundColor: Colors.red,
-                                            ),
-                                          );
-                                        } else if (info != null) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: const Text('Purchases restored!'),
-                                              backgroundColor: Color(0xFF0d9488),
-                                            ),
-                                          );
-                                        } else {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: const Text('No purchases to restore.'),
-                                              backgroundColor: Colors.orange,
-                                            ),
-                                          );
-                                        }
-                                      },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF0d9488),
-                                  foregroundColor: Colors.white,
-                                ),
-                                child: revenueCat.isRestoringPurchases
-                                    ? const SizedBox(
-                                        height: 20,
-                                        width: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                        ),
-                                      )
-                                    : const Text('Restore Purchases'),
+                            return TextButton(
+                              onPressed: revenueCat.isRestoringPurchases
+                                  ? null
+                                  : () async {
+                                      revenueCat.setIsRestoringPurchases(true);
+                                      final info = await revenueCat.restorePurchases();
+                                      revenueCat.setIsRestoringPurchases(false);
+                                      if (!mounted) return;
+                                      if (revenueCat.errorMessage != null) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(revenueCat.errorMessage!),
+                                            backgroundColor: Colors.red,
+                                            behavior: SnackBarBehavior.floating,
+                                            margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
+                                          ),
+                                        );
+                                      } else if (info != null) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: const Text('Purchases restored!'),
+                                            backgroundColor: Color(0xFF0d9488),
+                                            behavior: SnackBarBehavior.floating,
+                                            margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
+                                          ),
+                                        );
+                                      } else {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: const Text('No purchases to restore.'),
+                                            backgroundColor: Colors.orange,
+                                            behavior: SnackBarBehavior.floating,
+                                            margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
+                                          ),
+                                        );
+                                      }
+                                    },
+                              style: TextButton.styleFrom(
+                                foregroundColor: Color(0xFF0d9488),
                               ),
+                              child: revenueCat.isRestoringPurchases
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0d9488)),
+                                      ),
+                                    )
+                                  : const Text('Restore Purchases'),
                             );
                           },
                         ),
@@ -630,7 +654,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
                           children: [
                             TextButton(
                               onPressed: () {
-                                launchUrl(Uri.parse('https://yourdomain.com/terms'));
+                                launchUrl(Uri.parse('https://www.apple.com/legal/internet-services/itunes/dev/stdeula/'));
                               },
                               style: TextButton.styleFrom(
                                 foregroundColor: Color(0xFF0d9488), // App relevant teal color
@@ -640,7 +664,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
                             Text(' | ', style: TextStyle(color: Color(0xFF0d9488))), // Teal separator
                             TextButton(
                               onPressed: () {
-                                launchUrl(Uri.parse('https://yourdomain.com/privacy'));
+                                launchUrl(Uri.parse('https://docs.google.com/document/d/1mzfze5c8wibnWrzIAR3bHWwKkA0o_tIzkKsXaoFxflM/edit?pli=1&tab=t.0'));
                               },
                               style: TextButton.styleFrom(
                                 foregroundColor: Color(0xFF0d9488), // App relevant teal color
@@ -723,16 +747,6 @@ class _PackagesScreenState extends State<PackagesScreen> {
                 userName: authProvider.userName ?? '',
                 userEmail: authProvider.userEmail ?? '',
               ),
-              if (!isDrawerOpen)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: CurvedBottomBar(
-                    selectedIndex: provider.selectedIndex,
-                    onTap: (index) => _onBottomBarTap(context, index),
-                  ),
-                ),
             ],
           );
         },

@@ -9,6 +9,7 @@ class Package {
   final int colorGradientEnd;
   final bool isPopular;
   final String level;
+  final String productId; // <-- Add this line
 
   Package({
     required this.id,
@@ -21,6 +22,7 @@ class Package {
     required this.colorGradientEnd,
     this.isPopular = false,
     required this.level,
+    required this.productId, // <-- Add this line
   });
 }
 
@@ -39,6 +41,7 @@ final List<Package> packages = [
     colorGradientStart: 0xFF34D399,
     colorGradientEnd: 0xFF14b8a6,
     level: 'beginner',
+    productId: 'basic01', // <-- Add this line
   ),
   Package(
     id: 02,
@@ -54,6 +57,7 @@ final List<Package> packages = [
     colorGradientStart: 0xFF14b8a6,
     colorGradientEnd: 0xFF06b6d4,
     level: 'intermediate',
+    productId: 'intermediate02', // <-- Add this line
   ),
   Package(
     id: 03,
@@ -70,5 +74,6 @@ final List<Package> packages = [
     colorGradientStart: 0xFF06b6d4,
     colorGradientEnd: 0xFF2563eb,
     level: 'advanced',
+    productId: 'premium03', // <-- Add this line
   ),
 ];

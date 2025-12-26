@@ -99,6 +99,8 @@ class NotificationsScreen extends StatelessWidget {
                 SnackBar(
                   content: Text('All notifications marked as read'),
                   backgroundColor: ThemeColors.primaryTeal,
+                  behavior: SnackBarBehavior.floating,
+                  margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
                 ),
               );
             },

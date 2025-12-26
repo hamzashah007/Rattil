@@ -9,6 +9,7 @@ import 'package:rattil/widgets/app_snackbar.dart';
 import 'package:provider/provider.dart';
 import 'package:rattil/providers/auth_provider.dart' as my_auth;
 import 'package:rattil/providers/theme_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 
 class SignUpScreen extends StatefulWidget {
@@ -317,15 +318,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
 																		style: TextStyle(color: subtitleColor, fontSize: 14),
 																		children: [
 																			TextSpan(
-																				text: 'Terms & Conditions',
+																				text: 'Terms of Use',
 																				style: TextStyle(
 																					color: AppColors.teal700,
 																					fontWeight: FontWeight.bold,
 																				),
+																				recognizer: TapGestureRecognizer()
+																					..onTap = () {
+																						launchUrl(Uri.parse('https://www.apple.com/legal/internet-services/itunes/dev/stdeula/'));
+																					},
 																			),
 																			TextSpan(
 																				text: ' and ',
-																				style: TextStyle(color: subtitleColor, fontSize: 14),
+																			 style: TextStyle(color: subtitleColor, fontSize: 14),
 																			),
 																			TextSpan(
 																				text: 'Privacy Policy',
@@ -335,12 +340,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 																				),
 																				recognizer: TapGestureRecognizer()
 																					..onTap = () {
-																						// Navigator.push(
-																						// 	context,
-																						// 	// MaterialPageRoute(
-																						// 	// 	// builder: (context) => const PrivacyPolicyScreen(),
-																						// 	// ),
-																						// );
+																						launchUrl(Uri.parse('https://docs.google.com/document/d/1mzfze5c8wibnWrzIAR3bHWwKkA0o_tIzkKsXaoFxflM/edit?pli=1&tab=t.0'));
 																					},
 																			),
 																		],

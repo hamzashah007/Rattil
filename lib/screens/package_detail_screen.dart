@@ -55,8 +55,21 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
       debugPrint('   - Available packages: ${revenueCat.offerings?.current?.availablePackages.length ?? 0}');
     }
 
-    // Match UI package (id: 01, 02, 03) to RevenueCat package by store product identifier
-    final productId = widget.package.id.toString().padLeft(2, '0');
+    // Map package name to correct productId
+    String productId;
+    switch (widget.package.name) {
+      case 'Basic Recitation':
+        productId = 'basic01';
+        break;
+      case 'Intermediate':
+        productId = 'intermediate02';
+        break;
+      case 'Premium Intensive':
+        productId = 'premium03';
+        break;
+      default:
+        productId = widget.package.id.toString().padLeft(2, '0');
+    }
     debugPrint('🔎 [PackageDetailScreen] Matching package to RevenueCat product...');
     debugPrint('   - Package: ${widget.package.name} (ID: ${widget.package.id})');
     debugPrint('   - Looking for product ID: $productId');
@@ -103,6 +116,8 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
           ),
           backgroundColor: Colors.orange,
           duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
         ),
       );
       debugPrint('🛑 [PackageDetailScreen] ========== PURCHASE FLOW ABORTED ==========');
@@ -119,8 +134,21 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
     // Check if user already has a subscription to a different package
     if (revenueCat.hasAccess) {
       final currentSubscribedId = revenueCat.subscribedProductId;
-      final productId = widget.package.id.toString().padLeft(2, '0');
-      
+      // Use the same mapping for current productId
+      String currentProductId;
+      switch (widget.package.name) {
+        case 'Basic Recitation':
+          currentProductId = 'basic01';
+          break;
+        case 'Intermediate':
+          currentProductId = 'intermediate02';
+          break;
+        case 'Premium Intensive':
+          currentProductId = 'premium03';
+          break;
+        default:
+          currentProductId = widget.package.id.toString().padLeft(2, '0');
+      }
       // If user is trying to purchase a different package
       if (currentSubscribedId != null && currentSubscribedId != productId) {
         debugPrint('⚠️ [PackageDetailScreen] User has different subscription - showing warning dialog');
@@ -264,9 +292,31 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
     // Purchase using the package directly (best practice)
     debugPrint('💳 [PackageDetailScreen] Initiating purchase with RevenueCat...');
     debugPrint('   - Calling purchasePackage()...');
-    
-    final customerInfo = await revenueCat.purchasePackage(rcPackage);
-    
+
+    bool didTimeout = false;
+    final purchaseFuture = revenueCat.purchasePackage(rcPackage);
+    final customerInfo = await purchaseFuture.timeout(
+      const Duration(seconds: 20),
+      onTimeout: () {
+        didTimeout = true;
+        return null;
+      },
+    );
+
+    if (didTimeout) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Purchase timed out. Please check your connection and try again.'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
+          ),
+        );
+      }
+      return;
+    }
+
     debugPrint('📥 [PackageDetailScreen] Purchase call completed');
     
     if (!mounted) {
@@ -279,7 +329,11 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
       debugPrint('   - Error: ${revenueCat.errorMessage}');
       // Note: RevenueCatProvider.isPurchasing is automatically cleared by purchasePackage()
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(revenueCat.errorMessage!)),
+        SnackBar(
+          content: Text(revenueCat.errorMessage!),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
+        ),
       );
       debugPrint('🛑 [PackageDetailScreen] ========== PURCHASE FLOW FAILED ==========');
     } else if (customerInfo != null) {
@@ -355,11 +409,7 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
               ),
               backgroundColor: Color(0xFF0d9488),
               behavior: SnackBarBehavior.floating,
-              margin: const EdgeInsets.only(
-                bottom: 60,
-                left: 16,
-                right: 16,
-              ),
+              margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
             ),
           );
         }
@@ -374,11 +424,7 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
               content: const Text('Purchase completed! Your subscription will be activated shortly.'),
               backgroundColor: Colors.orange,
               behavior: SnackBarBehavior.floating,
-              margin: const EdgeInsets.only(
-                bottom: 60,
-                left: 16,
-                right: 16,
-              ),
+              margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
             ),
           );
         }
@@ -547,8 +593,21 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
             // Subscribe button
             Consumer<RevenueCatProvider>(
               builder: (context, revenueCat, _) {
-                // Always use the UI package ID padded to 2 digits for subscription check
-                final productId = widget.package.id.toString().padLeft(2, '0');
+                // Map package name to correct productId
+                String productId;
+                switch (widget.package.name) {
+                  case 'Basic Recitation':
+                    productId = 'basic01';
+                    break;
+                  case 'Intermediate':
+                    productId = 'intermediate02';
+                    break;
+                  case 'Premium Intensive':
+                    productId = 'premium03';
+                    break;
+                  default:
+                    productId = widget.package.id.toString().padLeft(2, '0');
+                }
                 final isThisPackageSubscribed = revenueCat.isProductSubscribed(productId);
                 
                 debugPrint('🔄 [PackageDetailScreen] Consumer rebuild - RevenueCat state:');
@@ -729,17 +788,31 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
                         : () async {
                             revenueCat.setIsRestoringPurchases(true);
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Restoring purchases...')),
+                              SnackBar(
+                                content: Text('Restoring purchases...'),
+                                behavior: SnackBarBehavior.floating,
+                                margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
+                              ),
                             );
                             final result = await revenueCat.restorePurchases();
                             revenueCat.setIsRestoringPurchases(false);
                             if (result == true) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Purchases restored successfully!'), backgroundColor: Color(0xFF0d9488)),
+                                SnackBar(
+                                  content: Text('Purchases restored successfully!'),
+                                  backgroundColor: Color(0xFF0d9488),
+                                  behavior: SnackBarBehavior.floating,
+                                  margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
+                                ),
                               );
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('No purchases found or restore failed.'), backgroundColor: Colors.red),
+                                SnackBar(
+                                  content: Text('No purchases found or restore failed.'),
+                                  backgroundColor: Colors.red,
+                                  behavior: SnackBarBehavior.floating,
+                                  margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
+                                ),
                               );
                             }
                           },
@@ -766,7 +839,7 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
               children: [
                 TextButton(
                   onPressed: () {
-                    launchUrl(Uri.parse('https://yourdomain.com/terms'));
+                    launchUrl(Uri.parse('https://www.apple.com/legal/internet-services/itunes/dev/stdeula/'));
                   },
                   style: TextButton.styleFrom(
                     foregroundColor: Color(0xFF0d9488), // App relevant teal color
@@ -776,7 +849,7 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
                 Text(' | ', style: TextStyle(color: Color(0xFF0d9488))), // Teal separator
                 TextButton(
                   onPressed: () {
-                    launchUrl(Uri.parse('https://yourdomain.com/privacy'));
+                    launchUrl(Uri.parse('https://docs.google.com/document/d/1mzfze5c8wibnWrzIAR3bHWwKkA0o_tIzkKsXaoFxflM/edit?pli=1&tab=t.0'));
                   },
                   style: TextButton.styleFrom(
                     foregroundColor: Color(0xFF0d9488), // App relevant teal color
