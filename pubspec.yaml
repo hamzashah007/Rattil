@@ -2,7 +2,7 @@ name: rattil
 description: "Rattil is a modern Quran learning app designed to help users of all ages learn, recite, and understand the Quran with ease. Featuring interactive lessons and a beautiful user experience."
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
-version: 1.0.4+6
+version: 1.0.4+7
 
 environment:
   sdk: ^3.10.1
