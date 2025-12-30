@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -12,7 +13,8 @@ import 'package:rattil/screens/splashscreen.dart';
 
 import 'firebase_options.dart';
 
-const _revenuecatApiKey = 'appl_pMSdZUXXAVlzGeftesHFTwvEsiu';
+const _revenuecatApiKeyIOS = 'appl_pMSdZUXXAVlzGeftesHFTwvEsiu';
+const _revenuecatApiKeyAndroid = 'goog_TWLbpyQfNSsCWUcBEXOHOqTgPuf';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,7 +27,9 @@ Future<void> main() async {
   } else {
     await Purchases.setLogLevel(LogLevel.error);
   }
-  final rcConfig = PurchasesConfiguration(_revenuecatApiKey)
+  final rcConfig = PurchasesConfiguration(
+    Platform.isAndroid ? _revenuecatApiKeyAndroid : _revenuecatApiKeyIOS,
+  )
     ..appUserID = null
     ..entitlementVerificationMode = EntitlementVerificationMode.informational;
   await Purchases.configure(rcConfig);
