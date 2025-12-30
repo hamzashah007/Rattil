@@ -6,6 +6,7 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:rattil/providers/auth_provider.dart';
 import 'package:rattil/providers/drawer_provider.dart';
+import 'package:rattil/providers/notification_provider.dart';
 import 'package:rattil/providers/profile_provider.dart';
 import 'package:rattil/providers/revenuecat_provider.dart';
 import 'package:rattil/providers/theme_provider.dart';
@@ -48,6 +49,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
         ChangeNotifierProvider(create: (_) => RevenueCatProvider()..start()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {

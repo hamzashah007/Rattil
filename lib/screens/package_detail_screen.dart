@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:rattil/models/package.dart' as models;
+import 'package:rattil/models/app_notification.dart';
 import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/providers/revenuecat_provider.dart';
+import 'package:rattil/providers/notification_provider.dart';
 import 'package:rattil/screens/subscriber_dashboard_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -431,6 +433,16 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
                   final mailtoUrl = 'mailto:fareedstock@gmail.com?subject=$subject&body=$body';
                   if (await canLaunchUrl(Uri.parse(mailtoUrl))) {
                     await launchUrl(Uri.parse(mailtoUrl));
+                    // Add notification for trial request
+                    final notificationProvider = context.read<NotificationProvider>();
+                    notificationProvider.addNotification(AppNotification(
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      title: 'Trial Requested',
+                      message: 'You requested a trial for ${widget.package.name}.',
+                      date: DateTime.now(),
+                      icon: Icons.hourglass_top,
+                      iconColor: Color(0xFF0d9488),
+                    ));
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(

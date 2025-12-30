@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:rattil/providers/theme_provider.dart';
+import 'package:rattil/providers/notification_provider.dart';
 import 'package:rattil/utils/theme_colors.dart';
 
 class NotificationsScreen extends StatelessWidget {
@@ -15,63 +16,7 @@ class NotificationsScreen extends StatelessWidget {
     final textColor = isDarkMode ? ThemeColors.darkText : ThemeColors.lightText;
     final subtitleColor = isDarkMode ? ThemeColors.darkSubtitle : ThemeColors.lightSubtitle;
 
-    // Sample notifications data
-    final List<Map<String, dynamic>> notifications = [
-      {
-        'icon': Icons.celebration,
-        'iconColor': Color(0xFFF59E0B),
-        'iconBg': Color(0xFFFEF3C7),
-        'title': 'Welcome to Rattil!',
-        'message': 'Start your Quran learning journey today. Explore our packages.',
-        'time': '2 min ago',
-        'isRead': false,
-      },
-      {
-        'icon': Icons.schedule,
-        'iconColor': Color(0xFF3B82F6),
-        'iconBg': Color(0xFFDBEAFE),
-        'title': 'Class Reminder',
-        'message': 'Your next Quran class is scheduled for tomorrow at 10:00 AM.',
-        'time': '1 hour ago',
-        'isRead': false,
-      },
-      {
-        'icon': Icons.payment,
-        'iconColor': Color(0xFF22C55E),
-        'iconBg': Color(0xFFDCFCE7),
-        'title': 'Payment Successful',
-        'message': 'Your payment for Premium Intensive package has been confirmed.',
-        'time': '3 hours ago',
-        'isRead': true,
-      },
-      {
-        'icon': Icons.star,
-        'iconColor': Color(0xFF8B5CF6),
-        'iconBg': Color(0xFFEDE9FE),
-        'title': 'Achievement Unlocked!',
-        'message': 'Congratulations! You completed your first week of classes.',
-        'time': '1 day ago',
-        'isRead': true,
-      },
-      {
-        'icon': Icons.campaign,
-        'iconColor': Color(0xFFEC4899),
-        'iconBg': Color(0xFFFCE7F3),
-        'title': 'Special Offer',
-        'message': 'Get 20% off on yearly subscription. Limited time offer!',
-        'time': '2 days ago',
-        'isRead': true,
-      },
-      {
-        'icon': Icons.person,
-        'iconColor': Color(0xFF14b8a6),
-        'iconBg': Color(0xFFCCFBF1),
-        'title': 'Profile Updated',
-        'message': 'Your profile information has been updated successfully.',
-        'time': '3 days ago',
-        'isRead': true,
-      },
-    ];
+    final notifications = context.watch<NotificationProvider>().notifications;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -92,22 +37,45 @@ class NotificationsScreen extends StatelessWidget {
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () {
-              // Mark all as read
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('All notifications marked as read'),
-                  backgroundColor: ThemeColors.primaryTeal,
-                  behavior: SnackBarBehavior.floating,
-                  margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
-                ),
+          Consumer<NotificationProvider>(
+            builder: (context, notificationProvider, _) {
+              final unread = notificationProvider.unreadCount;
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.notifications, color: textColor),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                      );
+                    },
+                  ),
+                  if (unread > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                        child: Text(
+                          '$unread',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
               );
             },
-            child: Text(
-              'Mark all read',
-              style: TextStyle(color: ThemeColors.primaryTeal, fontWeight: FontWeight.w600),
-            ),
           ),
         ],
       ),
@@ -146,8 +114,7 @@ class NotificationsScreen extends StatelessWidget {
               itemCount: notifications.length,
               itemBuilder: (context, index) {
                 final notification = notifications[index];
-                final bool isRead = notification['isRead'];
-                
+                final bool isRead = notification.isRead;
                 return Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   decoration: BoxDecoration(
@@ -169,7 +136,7 @@ class NotificationsScreen extends StatelessWidget {
                     child: InkWell(
                       borderRadius: BorderRadius.circular(12),
                       onTap: () {
-                        // Handle notification tap
+                        context.read<NotificationProvider>().markAsRead(notification.id);
                       },
                       child: Padding(
                         padding: const EdgeInsets.all(16),
@@ -182,13 +149,13 @@ class NotificationsScreen extends StatelessWidget {
                               height: 48,
                               decoration: BoxDecoration(
                                 color: isDarkMode 
-                                    ? notification['iconColor'].withOpacity(0.2)
-                                    : notification['iconBg'],
+                                    ? notification.iconColor.withOpacity(0.2)
+                                    : notification.iconColor.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Icon(
-                                notification['icon'],
-                                color: notification['iconColor'],
+                                notification.icon,
+                                color: notification.iconColor,
                                 size: 24,
                               ),
                             ),
@@ -202,7 +169,7 @@ class NotificationsScreen extends StatelessWidget {
                                     children: [
                                       Expanded(
                                         child: Text(
-                                          notification['title'],
+                                          notification.title,
                                           style: TextStyle(
                                             fontSize: 15,
                                             fontWeight: isRead ? FontWeight.w500 : FontWeight.bold,
@@ -223,7 +190,7 @@ class NotificationsScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    notification['message'],
+                                    notification.message,
                                     style: TextStyle(
                                       fontSize: 13,
                                       color: subtitleColor,
@@ -234,7 +201,7 @@ class NotificationsScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    notification['time'],
+                                    _formatTime(notification.date),
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: subtitleColor.withOpacity(0.7),
@@ -252,5 +219,15 @@ class NotificationsScreen extends StatelessWidget {
               },
             ),
     );
+  }
+
+  String _formatTime(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
+    if (diff.inHours < 24) return '${diff.inHours} hour${diff.inHours > 1 ? 's' : ''} ago';
+    if (diff.inDays < 7) return '${diff.inDays} day${diff.inDays > 1 ? 's' : ''} ago';
+    return '${date.day}/${date.month}/${date.year}';
   }
 }

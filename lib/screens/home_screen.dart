@@ -19,6 +19,7 @@ import 'package:rattil/screens/transaction_history_screen.dart';
 import 'package:rattil/screens/notifications_screen.dart';
 import 'package:rattil/screens/auth/sign_in.dart';
 import 'package:rattil/providers/revenuecat_provider.dart';
+import 'package:rattil/providers/notification_provider.dart';
 
 // Method channel for moving app to background
 const platform = MethodChannel('com.rattil.app/background');
@@ -32,7 +33,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  final int notificationCount = 2;
 
   @override
   void initState() {
@@ -201,58 +201,62 @@ class _HomeScreenState extends State<HomeScreen> {
                 SystemNavigator.pop();
               }
             },
-            child: Stack(
-              children: [
-                Scaffold(
-                  key: _scaffoldKey,
-                  extendBodyBehindAppBar: true,
-                  backgroundColor: bgColor,
-                  appBar: AppBarWidget(
-                    notificationCount: notificationCount,
-                    onMenuTap: () => _toggleDrawer(context),
-                    onNotificationTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => NotificationsScreen()),
-                      );
-                    },
-                  ),
-                body: Padding(
-                  padding: EdgeInsets.only(
-                    top: kToolbarHeight + MediaQuery.of(context).padding.top,
-                    bottom: 0,
-                  ),
-                  child: _getScreenContent(context, homeProvider.selectedIndex),
-                ),
-              ),
-              DrawerMenu(
-                closeDrawer: () => _closeDrawer(context),
-                toggleDarkMode: () => _toggleDarkMode(context),
-                handleNavigation: (route) => _handleNavigation(context, route),
-                handleLogout: () => _handleLogout(context),
-                onProfileTap: () {
-                  // Navigate to profile tab after drawer closes
-                  Future.delayed(Duration(milliseconds: 350), () {
-                    homeProvider.setSelectedIndex(2);
-                  });
-                },
-                onCustomerCenterTap: () {
-                  Provider.of<RevenueCatProvider>(context, listen: false).openCustomerCenter();
-                },
-                userName: authProvider.userName ?? 'User',
-                userEmail: authProvider.userEmail ?? '',
-              ),
-              if (!isDrawerOpen)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: CurvedBottomBar(
-                    selectedIndex: homeProvider.selectedIndex,
-                    onTap: (index) => _onBottomBarTap(context, index),
-                  ),
-                ),
-              ],
+            child: Consumer<NotificationProvider>(
+              builder: (context, notificationProvider, _) {
+                return Stack(
+                  children: [
+                    Scaffold(
+                      key: _scaffoldKey,
+                      extendBodyBehindAppBar: true,
+                      backgroundColor: bgColor,
+                      appBar: AppBarWidget(
+                        notificationCount: notificationProvider.unreadCount,
+                        onMenuTap: () => _toggleDrawer(context),
+                        onNotificationTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => NotificationsScreen()),
+                          );
+                        },
+                      ),
+                      body: Padding(
+                        padding: EdgeInsets.only(
+                          top: kToolbarHeight + MediaQuery.of(context).padding.top,
+                          bottom: 0,
+                        ),
+                        child: _getScreenContent(context, homeProvider.selectedIndex),
+                      ),
+                    ),
+                    DrawerMenu(
+                      closeDrawer: () => _closeDrawer(context),
+                      toggleDarkMode: () => _toggleDarkMode(context),
+                      handleNavigation: (route) => _handleNavigation(context, route),
+                      handleLogout: () => _handleLogout(context),
+                      onProfileTap: () {
+                        // Navigate to profile tab after drawer closes
+                        Future.delayed(Duration(milliseconds: 350), () {
+                          homeProvider.setSelectedIndex(2);
+                        });
+                      },
+                      onCustomerCenterTap: () {
+                        Provider.of<RevenueCatProvider>(context, listen: false).openCustomerCenter();
+                      },
+                      userName: authProvider.userName ?? 'User',
+                      userEmail: authProvider.userEmail ?? '',
+                    ),
+                    if (!isDrawerOpen)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: CurvedBottomBar(
+                          selectedIndex: homeProvider.selectedIndex,
+                          onTap: (index) => _onBottomBarTap(context, index),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           );
         },
