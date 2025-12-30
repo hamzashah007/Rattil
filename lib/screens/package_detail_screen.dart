@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:rattil/models/package.dart' as models;
 import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/providers/revenuecat_provider.dart';
-import 'package:rattil/screens/trial_request_success_screen.dart';
 import 'package:rattil/screens/subscriber_dashboard_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -38,296 +37,81 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
     debugPrint('   - Price: \$${widget.package.price}');
     
     final revenueCat = context.read<RevenueCatProvider>();
-    
-    // Note: RevenueCatProvider.isPurchasing is automatically set by purchasePackage()
-    // No need to set local state
     debugPrint('⏳ [PackageDetailScreen] Initiating purchase...');
-    
-    // Ensure offerings are loaded
-    debugPrint('🔍 [PackageDetailScreen] Checking offerings availability...');
     if (revenueCat.offerings?.current == null) {
-      debugPrint('⚠️  [PackageDetailScreen] Offerings not loaded, fetching now...');
       await revenueCat.refreshOfferings();
-      debugPrint('✅ [PackageDetailScreen] Offerings refresh completed');
-    } else {
-      debugPrint('✅ [PackageDetailScreen] Offerings already loaded');
-      debugPrint('   - Current offering ID: ${revenueCat.offerings?.current?.identifier}');
-      debugPrint('   - Available packages: ${revenueCat.offerings?.current?.availablePackages.length ?? 0}');
     }
-
-    // Map package name to correct productId
-    String productId;
-    switch (widget.package.name) {
-      case 'Basic Recitation':
-        productId = 'basic01';
-        break;
-      case 'Intermediate':
-        productId = 'intermediate02';
-        break;
-      case 'Premium Intensive':
-        productId = 'premium03';
-        break;
-      default:
-        productId = widget.package.id.toString().padLeft(2, '0');
-    }
-    debugPrint('🔎 [PackageDetailScreen] Matching package to RevenueCat product...');
-    debugPrint('   - Package: ${widget.package.name} (ID: ${widget.package.id})');
-    debugPrint('   - Looking for product ID: $productId');
-    
-    // First, check if product exists in offerings (diagnostic)
-    final productExists = revenueCat.isProductInOfferings(productId);
-    debugPrint('   - Product exists in offerings: $productExists');
-    
-    final rcPackage = revenueCat.findPackageByStoreProductId(productId);
-
+    final productId = widget.package.productId;
+    final rcPackage = revenueCat.offerings?.current?.availablePackages.firstWhere(
+      (pkg) => pkg.storeProduct.identifier == productId,
+      orElse: () => revenueCat.offerings!.current!.availablePackages.isNotEmpty
+        ? revenueCat.offerings!.current!.availablePackages.first
+        : throw StateError('No available packages'),
+    );
     if (rcPackage == null) {
-      debugPrint('❌ [PackageDetailScreen] Package NOT FOUND in RevenueCat offerings!');
-      debugPrint('   - Package Name: ${widget.package.name}');
-      debugPrint('   - Package ID: ${widget.package.id}');
-      debugPrint('   - Searched product ID: $productId');
-      debugPrint('   - Available packages: ${revenueCat.availablePackages.length}');
-      if (revenueCat.availablePackages.isNotEmpty) {
-        debugPrint('   - Available product IDs in RevenueCat:');
-        for (final pkg in revenueCat.availablePackages) {
-          debugPrint('     • Product ID: ${pkg.storeProduct.identifier}');
-          debugPrint('       - Package ID: ${pkg.identifier}');
-          debugPrint('       - Title: ${pkg.storeProduct.title}');
-          debugPrint('       - Price: ${pkg.storeProduct.priceString}');
-        }
-      } else {
-        debugPrint('   ⚠️ No packages available in RevenueCat offerings!');
-        debugPrint('   💡 This might indicate:');
-        debugPrint('      1. RevenueCat offerings not loaded properly');
-        debugPrint('      2. Product not configured in RevenueCat dashboard');
-        debugPrint('      3. Product not configured in App Store Connect');
-        debugPrint('      4. Network connectivity issue');
-      }
-      if (!mounted) {
-        debugPrint('⚠️  [PackageDetailScreen] Widget not mounted, aborting...');
-        return;
-      }
-      // Note: RevenueCatProvider.isPurchasing is automatically cleared by purchasePackage()
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            widget.package.id == 3 
-              ? 'Premium Intensive package not found in RevenueCat. Please check RevenueCat dashboard configuration.'
-              : 'Product not available. Please check your connection and try again.',
-          ),
+          content: Text('Product not available. Please check your connection and try again.'),
           backgroundColor: Colors.orange,
           duration: const Duration(seconds: 5),
           behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
         ),
       );
-      debugPrint('🛑 [PackageDetailScreen] ========== PURCHASE FLOW ABORTED ==========');
       return;
     }
-
-    debugPrint('✅ [PackageDetailScreen] Package matched successfully!');
-    debugPrint('   - RevenueCat Package ID: ${rcPackage.identifier}');
-    debugPrint('   - Store Product ID: ${rcPackage.storeProduct.identifier}');
-    debugPrint('   - Product Title: ${rcPackage.storeProduct.title}');
-    debugPrint('   - Product Price: ${rcPackage.storeProduct.priceString}');
-    debugPrint('   - Package Type: ${rcPackage.packageType}');
-
-    // Check if user already has a subscription to a different package
     if (revenueCat.hasAccess) {
-      final currentSubscribedId = revenueCat.subscribedProductId;
-      // Use the same mapping for current productId
-      String currentProductId;
-      switch (widget.package.name) {
-        case 'Basic Recitation':
-          currentProductId = 'basic01';
-          break;
-        case 'Intermediate':
-          currentProductId = 'intermediate02';
-          break;
-        case 'Premium Intensive':
-          currentProductId = 'premium03';
-          break;
-        default:
-          currentProductId = widget.package.id.toString().padLeft(2, '0');
-      }
-      // If user is trying to purchase a different package
+      final currentSubscribedId = revenueCat.customerInfo?.entitlements.active[RevenueCatProvider.entitlementId]?.productIdentifier;
       if (currentSubscribedId != null && currentSubscribedId != productId) {
-        debugPrint('⚠️ [PackageDetailScreen] User has different subscription - showing warning dialog');
-        
-        // Find current package name for better messaging
-        String currentPackageName = 'your current package';
-        try {
-          final currentPackageIdInt = int.parse(currentSubscribedId);
-          final currentPkg = models.packages.firstWhere(
-            (pkg) => pkg.id == currentPackageIdInt,
-            orElse: () => models.packages.first,
-          );
-          currentPackageName = currentPkg.name;
-        } catch (e) {
-          debugPrint('⚠️ Could not find current package name: $e');
-        }
-        
-        // Show warning dialog
         if (!mounted) return;
         final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
         final isDarkMode = themeProvider.isDarkMode;
         final shouldProceed = await showDialog<bool>(
           context: context,
           builder: (context) {
-            // Dialog colors for dark/light mode
             final dialogBg = isDarkMode ? const Color(0xFF1F2937) : Colors.white;
             final textColor = isDarkMode ? Colors.white : const Color(0xFF111827);
             final subtitleColor = isDarkMode ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280);
-            final tealIcon = const Color(0xFF0d9488); // Teal-600 (app primary)
-            final tealBg = isDarkMode ? const Color(0xFF0f766e).withOpacity(0.2) : const Color(0xFFccfbf1); // Teal-100/700 with opacity
-            final tealBorder = isDarkMode ? const Color(0xFF5eead4) : const Color(0xFF5eead4); // Teal-300
-            final tealText = isDarkMode ? const Color(0xFF5eead4) : const Color(0xFF0f766e); // Teal-300/700
-            
+            final tealIcon = const Color(0xFF0d9488);
+            final tealBg = isDarkMode ? const Color(0xFF0f766e).withOpacity(0.2) : const Color(0xFFccfbf1);
+            final tealBorder = isDarkMode ? const Color(0xFF5eead4) : const Color(0xFF5eead4);
+            final tealText = isDarkMode ? const Color(0xFF5eead4) : const Color(0xFF0f766e);
             return AlertDialog(
               backgroundColor: dialogBg,
-              title: Text(
-                'Switch Package?',
-                style: TextStyle(color: textColor),
-              ),
+              title: Text('Switch Package?', style: TextStyle(color: textColor)),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'You are currently subscribed to $currentPackageName.',
-                    style: TextStyle(color: textColor),
-                  ),
+                  Text('You are currently subscribed to another package.', style: TextStyle(color: textColor)),
                   const SizedBox(height: 12),
-                  Text(
-                    'Purchasing this package will:',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: textColor,
-                    ),
-                  ),
+                  Text('Purchasing this package will:', style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.arrow_forward, size: 16, color: tealIcon),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          'Replace your current subscription',
-                          style: TextStyle(color: textColor),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Icon(Icons.arrow_forward, size: 16, color: tealIcon),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          'Cancel your existing package',
-                          style: TextStyle(color: textColor),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Icon(Icons.arrow_forward, size: 16, color: tealIcon),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          'Activate this package immediately',
-                          style: TextStyle(color: textColor),
-                        ),
-                      ),
-                    ],
-                  ),
+                  Row(children: [Icon(Icons.arrow_forward, size: 16, color: tealIcon), const SizedBox(width: 4), Expanded(child: Text('Replace your current subscription', style: TextStyle(color: textColor)))]),
+                  Row(children: [Icon(Icons.arrow_forward, size: 16, color: tealIcon), const SizedBox(width: 4), Expanded(child: Text('Cancel your existing package', style: TextStyle(color: textColor)))]),
+                  Row(children: [Icon(Icons.arrow_forward, size: 16, color: tealIcon), const SizedBox(width: 4), Expanded(child: Text('Activate this package immediately', style: TextStyle(color: textColor)))]),
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: tealBg,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: tealBorder, width: 1),
-                    ),
-                    child: Text(
-                      'Note: You can only have one active package at a time.',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: tealText,
-                        fontSize: 12,
-                      ),
-                    ),
+                    decoration: BoxDecoration(color: tealBg, borderRadius: BorderRadius.circular(4), border: Border.all(color: tealBorder, width: 1)),
+                    child: Text('Note: You can only have one active package at a time.', style: TextStyle(fontWeight: FontWeight.bold, color: tealText, fontSize: 12)),
                   ),
                 ],
               ),
               actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: Text(
-                    'Cancel',
-                    style: TextStyle(color: subtitleColor),
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0d9488),
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('Switch Package'),
-                ),
+                TextButton(onPressed: () => Navigator.pop(context, false), child: Text('Cancel', style: TextStyle(color: subtitleColor))),
+                ElevatedButton(onPressed: () => Navigator.pop(context, true), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0d9488), foregroundColor: Colors.white), child: const Text('Switch Package')),
               ],
             );
           },
         );
-        
-        if (shouldProceed != true) {
-          debugPrint('🚫 [PackageDetailScreen] User cancelled package switch');
-          return; // User cancelled
-        }
-        debugPrint('✅ [PackageDetailScreen] User confirmed package switch');
+        if (shouldProceed != true) return;
       }
     }
-
-    // Purchase using the package directly (best practice)
-    debugPrint('💳 [PackageDetailScreen] Initiating purchase with RevenueCat...');
-    debugPrint('   - Calling purchasePackage()...');
-
-    bool didTimeout = false;
-    final purchaseFuture = revenueCat.purchasePackage(rcPackage);
-    final customerInfo = await purchaseFuture.timeout(
-      const Duration(seconds: 20),
-      onTimeout: () {
-        didTimeout = true;
-        return null;
-      },
-    );
-
-    if (didTimeout) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Purchase timed out. Please check your connection and try again.'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
-          ),
-        );
-      }
-      return;
-    }
-
-    debugPrint('📥 [PackageDetailScreen] Purchase call completed');
-    
-    if (!mounted) {
-      debugPrint('⚠️  [PackageDetailScreen] Widget not mounted after purchase, aborting...');
-      return;
-    }
-
+    final customerInfo = await revenueCat.purchasePackage(rcPackage);
+    if (!mounted) return;
     if (revenueCat.errorMessage != null) {
-      debugPrint('❌ [PackageDetailScreen] Purchase FAILED with error:');
-      debugPrint('   - Error: ${revenueCat.errorMessage}');
-      // Note: RevenueCatProvider.isPurchasing is automatically cleared by purchasePackage()
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(revenueCat.errorMessage!),
@@ -335,106 +119,15 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
           margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
         ),
       );
-      debugPrint('🛑 [PackageDetailScreen] ========== PURCHASE FLOW FAILED ==========');
     } else if (customerInfo != null) {
-      debugPrint('✅ [PackageDetailScreen] Purchase completed successfully!');
-      debugPrint('   - Customer Info received');
-      debugPrint('   - Checking entitlement access...');
-      
-      final productId = widget.package.id.toString().padLeft(2, '0');
-      
-      // Retry mechanism: Wait for subscription status to sync
-      // Keep purchasing state active until subscription is confirmed
-      bool subscriptionActive = false;
-      
-      // OPTIMIZED: Check immediately using temporary storage (no refresh needed)
-      // Temporary storage is set immediately in purchasePackage(), so UI should update instantly
-      debugPrint('   - Checking subscription status immediately (using temporary storage)...');
-      
-      // Check immediately without refresh (temporary storage should be available)
-      final hasAccessImmediate = revenueCat.hasAccess;
-      final isThisPackageSubscribedImmediate = revenueCat.isProductSubscribed(productId);
-      debugPrint('   - Immediate check: Has access: $hasAccessImmediate, Is subscribed: $isThisPackageSubscribedImmediate');
-      
-      if (hasAccessImmediate && isThisPackageSubscribedImmediate) {
-        subscriptionActive = true;
-        debugPrint('   ✅ Subscription status confirmed immediately (using temporary storage)!');
-      } else {
-        // If not confirmed, refresh and retry with shorter delays (optimized for Premium Intensive)
-        debugPrint('   - Temporary storage not working, refreshing customer info...');
-        await revenueCat.refreshCustomerInfo();
-        
-        // Check again after refresh
-        final hasAccessAfterRefresh = revenueCat.hasAccess;
-        final isThisPackageSubscribedAfterRefresh = revenueCat.isProductSubscribed(productId);
-        debugPrint('   - After refresh: Has access: $hasAccessAfterRefresh, Is subscribed: $isThisPackageSubscribedAfterRefresh');
-        
-        if (hasAccessAfterRefresh && isThisPackageSubscribedAfterRefresh) {
-          subscriptionActive = true;
-          debugPrint('   ✅ Subscription status confirmed after refresh!');
-        } else {
-          // Final retry with minimal delays (optimized for faster UI update)
-          for (int attempt = 1; attempt < 2; attempt++) {
-            debugPrint('   - Final retry attempt ${attempt + 1}/2, waiting for sync...');
-            await Future.delayed(Duration(milliseconds: 100 * attempt)); // 100ms (reduced from 200ms)
-            
-            // Refresh customer info to get latest status
-            await revenueCat.refreshCustomerInfo();
-            
-            final hasAccess = revenueCat.hasAccess;
-            final isThisPackageSubscribed = revenueCat.isProductSubscribed(productId);
-            
-            debugPrint('   - Attempt ${attempt + 1}: Has access: $hasAccess, Is subscribed: $isThisPackageSubscribed');
-            
-            if (hasAccess && isThisPackageSubscribed) {
-              subscriptionActive = true;
-              debugPrint('   ✅ Subscription status confirmed!');
-              break;
-            }
-          }
-        }
-      }
-      
-      if (subscriptionActive) {
-        debugPrint('🎉 [PackageDetailScreen] Entitlement is ACTIVE!');
-        debugPrint('   - User now has access to Rattil Packages');
-        await revenueCat.refreshCustomerInfo();
-        // Removed setState(); rely on Provider notification
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text(
-                'Subscription activated! Welcome to Rattil.',
-                style: TextStyle(color: Colors.white),
-              ),
-              backgroundColor: Color(0xFF0d9488),
-              behavior: SnackBarBehavior.floating,
-              margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
-            ),
-          );
-        }
-        debugPrint('✅ [PackageDetailScreen] ========== PURCHASE FLOW SUCCESS ==========');
-        // Navigation removed, user stays on this screen
-      } else {
-        debugPrint('⚠️  [PackageDetailScreen] Purchase completed but subscription status not confirmed after retries');
-        debugPrint('   - This might be normal if entitlement is pending activation');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Purchase completed! Your subscription will be activated shortly.'),
-              backgroundColor: Colors.orange,
-              behavior: SnackBarBehavior.floating,
-              margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
-            ),
-          );
-        }
-        // Navigation removed here as well
-      }
-    } else {
-      debugPrint('⚠️  [PackageDetailScreen] Purchase returned null customerInfo');
-      debugPrint('   - User may have cancelled the purchase');
-      // Note: RevenueCatProvider.isPurchasing is automatically cleared by purchasePackage()
-      debugPrint('🛑 [PackageDetailScreen] ========== PURCHASE FLOW CANCELLED ==========');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Subscription activated! Welcome to Rattil.', style: TextStyle(color: Colors.white)),
+          backgroundColor: Color(0xFF0d9488),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
+        ),
+      );
     }
   }
 
@@ -593,21 +286,7 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
             // Subscribe button
             Consumer<RevenueCatProvider>(
               builder: (context, revenueCat, _) {
-                // Map package name to correct productId
-                String productId;
-                switch (widget.package.name) {
-                  case 'Basic Recitation':
-                    productId = 'basic01';
-                    break;
-                  case 'Intermediate':
-                    productId = 'intermediate02';
-                    break;
-                  case 'Premium Intensive':
-                    productId = 'premium03';
-                    break;
-                  default:
-                    productId = widget.package.id.toString().padLeft(2, '0');
-                }
+                final productId = widget.package.productId;
                 final isThisPackageSubscribed = revenueCat.isProductSubscribed(productId);
                 
                 debugPrint('🔄 [PackageDetailScreen] Consumer rebuild - RevenueCat state:');
@@ -738,16 +417,30 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
               width: double.infinity,
               child: InkWell(
                 borderRadius: BorderRadius.circular(12),
-                onTap: () {
-                  // This is NOT a payment - just a trial request form submission
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => TrialRequestSuccessScreen(
-                        package: widget.package,
+                onTap: () async {
+                  final subject = Uri.encodeComponent('Rattil App Trial Request: ${widget.package.name}');
+                  final body = Uri.encodeComponent('Hello,\n\nI would like to request a trial for the following package on Rattil App:\n\n'
+                    'Package Name: ${widget.package.name}\n'
+                    'Package ID: ${widget.package.id}\n'
+                    'Price: ${widget.package.price}\n'
+                    'Duration: ${widget.package.duration}\n'
+                    'Session Time: ${widget.package.time}\n'
+                    'Features: ${widget.package.features.join(", ")}\n\n'
+                    'Requested on: ${DateTime.now().toLocal()}\n\n'
+                    'Thank you!');
+                  final mailtoUrl = 'mailto:fareedstock@gmail.com?subject=$subject&body=$body';
+                  if (await canLaunchUrl(Uri.parse(mailtoUrl))) {
+                    await launchUrl(Uri.parse(mailtoUrl));
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Could not open email app. Please send your request to fareedstock@gmail.com.'),
+                        backgroundColor: Colors.red,
+                        behavior: SnackBarBehavior.floating,
+                        margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
                       ),
-                    ),
-                  );
+                    );
+                  }
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
@@ -779,7 +472,7 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
             // Restore Purchases Button
             Consumer<RevenueCatProvider>(
               builder: (context, revenueCat, _) {
-                final isRestoring = revenueCat.isRestoringPurchases ?? false;
+                final isRestoring = revenueCat.isRestoringPurchases;
                 return SizedBox(
                   width: double.infinity,
                   child: TextButton(

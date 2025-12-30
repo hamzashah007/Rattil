@@ -3,7 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:rattil/models/package.dart';
 import 'package:rattil/providers/theme_provider.dart';
-import 'package:rattil/screens/trial_request_success_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PackageCard extends StatefulWidget {
   final Package package;
@@ -457,16 +457,31 @@ class _PackageCardState extends State<PackageCard> with SingleTickerProviderStat
                             width: double.infinity,
                             child: InkWell(
                               borderRadius: BorderRadius.circular(12),
-                              onTap: widget.onSecondaryButtonTap ?? () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => TrialRequestSuccessScreen(
-                                      package: widget.package,
-                                    ),
-                                  ),
-                                );
-                              },
+                              onTap: () async {
+                  final subject = Uri.encodeComponent('Rattil App Trial Request: ${widget.package.name}');
+                  final body = Uri.encodeComponent('Hello,\n\nI would like to request a trial for the following package on Rattil App:\n\n'
+                    'Package Name: ${widget.package.name}\n'
+                    'Package ID: ${widget.package.id}\n'
+                    'Price: ${widget.package.price}\n'
+                    'Duration: ${widget.package.duration}\n'
+                    'Session Time: ${widget.package.time}\n'
+                    'Features: ${widget.package.features.join(", ")}\n\n'
+                    'Requested on: ${DateTime.now().toLocal()}\n\n'
+                    'Thank you!');
+                  final mailtoUrl = 'mailto:fareedstock@gmail.com?subject=$subject&body=$body';
+                  if (await canLaunchUrl(Uri.parse(mailtoUrl))) {
+                    await launchUrl(Uri.parse(mailtoUrl));
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Could not open email app. Please send your request to fareedstock@gmail.com.'),
+                        backgroundColor: Colors.red,
+                        behavior: SnackBarBehavior.floating,
+                        margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
+                      ),
+                    );
+                  }
+                },
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 200),
                                 curve: Curves.ease,
@@ -485,14 +500,7 @@ class _PackageCardState extends State<PackageCard> with SingleTickerProviderStat
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    if (widget.secondaryButtonLabel == 'Customer Center')
-                                      Icon(Icons.settings, color: Colors.white, size: 20),
-                                    if (widget.secondaryButtonLabel == 'Customer Center')
-                                      const SizedBox(width: 8),
-                                    Text(
-                                      widget.secondaryButtonLabel ?? 'Request Trial',
-                                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                                    ),
+                                    Text('Request Trial', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                                     const SizedBox(width: 8),
                                     Icon(Icons.chevron_right, color: Colors.white, size: 20),
                                   ],

@@ -43,32 +43,17 @@ class _SubscriberDashboardScreenState extends State<SubscriberDashboardScreen> {
   }
 
   Widget _buildSubscribedPackageCard(BuildContext context, RevenueCatProvider revenueCat, bool isDarkMode) {
-    // Check if user has access (not cancelled)
     if (!revenueCat.hasAccess) {
-      debugPrint('⚠️ [SubscriberDashboardScreen] No access - subscription cancelled or expired');
       return const SizedBox.shrink();
     }
-    
-    // Get the subscribed product ID
     final subscribedProductId = revenueCat.subscribedProductId;
     if (subscribedProductId == null) {
-      debugPrint('⚠️ [SubscriberDashboardScreen] No subscribed product ID found');
       return const SizedBox.shrink();
     }
-
-    // Find the package that matches the subscribed product ID (use productId field)
-    debugPrint('🔍 [SubscriberDashboardScreen] Looking for package with product ID: $subscribedProductId');
-    debugPrint('   - Available packages in model:');
-    for (final pkg in packages) {
-      debugPrint('     • ${pkg.name} (ID: ${pkg.id}, productId: ${pkg.productId})');
-    }
-    
     final subscribedPackage = packages.where((pkg) => pkg.productId == subscribedProductId).toList().isNotEmpty
       ? packages.firstWhere((pkg) => pkg.productId == subscribedProductId)
       : null;
-
     if (subscribedPackage == null) {
-      debugPrint('   ❌ No matching package found for productId: $subscribedProductId');
       return const SizedBox.shrink();
     }
 
