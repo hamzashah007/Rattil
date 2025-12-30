@@ -92,7 +92,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
     // Check if user already has a subscription to a different package
     if (revenueCat.hasAccess) {
       final currentSubscribedId = revenueCat.subscribedProductId;
-      final productId = uiPackage.id.toString().padLeft(2, '0');
+      final productId = uiPackage.productId;
       
       // If user is trying to purchase a different package
       if (currentSubscribedId != null && currentSubscribedId != productId) {
@@ -247,7 +247,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
     }
 
     // Match UI package (id: 01, 02, 03) to RevenueCat package by store product identifier
-    final productId = uiPackage.id.toString().padLeft(2, '0');
+    final productId = uiPackage.productId;
     debugPrint('🔎 [PackagesScreen] Matching package to RevenueCat product...');
     debugPrint('   - Looking for product ID: $productId');
     
@@ -558,7 +558,7 @@ class _PackagesScreenState extends State<PackagesScreen> {
                 itemBuilder: (context, index) {
                   if (index < filteredPackages.length) {
                     final pkg = filteredPackages[index];
-                    final productId = pkg.id.toString().padLeft(2, '0');
+                    final productId = pkg.productId;
                     final isThisPackageSubscribed = revenueCat.isProductSubscribed(productId);
                     
                     debugPrint('📋 [PackagesScreen] Building package card $index: ${pkg.name}');

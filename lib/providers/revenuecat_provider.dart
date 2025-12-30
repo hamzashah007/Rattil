@@ -175,8 +175,7 @@ class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
       return null;
     }
     
-    // IMPORTANT: Check expiration date instead of just willRenew
-    // User should have product ID until subscription expires (Apple guidelines)
+    // Check expiration date as before
     if (entitlement.expirationDate != null && entitlement.expirationDate!.isNotEmpty) {
       try {
         final expirationDate = DateTime.parse(entitlement.expirationDate!);
@@ -184,20 +183,14 @@ class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
           debugPrint('⚠️ [RevenueCatProvider] Subscription expired - no product ID');
           return null;
         }
-        // Continue to find product ID even if willRenew = false
-        if (!entitlement.willRenew) {
-          debugPrint('ℹ️ [RevenueCatProvider] Subscription cancelled but still valid until $expirationDate - finding product ID');
-        }
       } catch (e) {
         debugPrint('⚠️ [RevenueCatProvider] Could not parse expiration date: $e');
-        // Fallback: if willRenew is false and no expiration date, return null
         if (!entitlement.willRenew) {
           debugPrint('⚠️ [RevenueCatProvider] Subscription cancelled (willRenew = false) and no expiration date - no product ID');
           return null;
         }
       }
     } else {
-      // No expiration date available, use willRenew as fallback
       if (!entitlement.willRenew) {
         debugPrint('⚠️ [RevenueCatProvider] Subscription cancelled (willRenew = false) and no expiration date - no product ID');
         return null;
@@ -205,29 +198,19 @@ class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
     }
     
     debugPrint('🔍 [RevenueCatProvider] Finding subscribed product ID...');
-    debugPrint('   - Entitlement identifier: ${entitlement.identifier}');
-    debugPrint('   - Entitlement productIdentifier: ${entitlement.productIdentifier}');
-    debugPrint('   - Will renew: ${entitlement.willRenew}');
+    debugPrint('   - Entitlement identifier: \\${entitlement.identifier}');
+    debugPrint('   - Entitlement productIdentifier: \\${entitlement.productIdentifier}');
+    debugPrint('   - Will renew: \\${entitlement.willRenew}');
     
-    // FIRST: Check if we have a recently purchased product ID that hasn't synced yet
-    debugPrint('   🔍 Checking temporary storage...');
-    debugPrint('   - Recently purchased ID: $_recentlyPurchasedProductId');
-    debugPrint('   - Recent purchase time: $_recentPurchaseTime');
-    
+    // Use temporary storage if available and recent
     if (_recentlyPurchasedProductId != null && _recentPurchaseTime != null) {
       final timeSincePurchase = DateTime.now().difference(_recentPurchaseTime!);
-      debugPrint('   - Time since purchase: ${timeSincePurchase.inSeconds}s (${timeSincePurchase.inMinutes} minutes)');
-      
-      // Use temporary product ID if purchase was within last 2 hours
-      // OPTIMIZED: Reduced from 24 hours to 2 hours for faster cleanup
-      // RevenueCat usually syncs within minutes, so 2 hours is sufficient
       if (timeSincePurchase.inHours < 2) {
-        debugPrint('   💾 Using recently purchased product ID (not yet synced): $_recentlyPurchasedProductId');
-        debugPrint('   ✅ Returning temporary product ID: $_recentlyPurchasedProductId');
+        debugPrint('   💾 Using recently purchased product ID (not yet synced): \\$_recentlyPurchasedProductId');
+        debugPrint('   ✅ Returning temporary product ID: \\$_recentlyPurchasedProductId');
         return _recentlyPurchasedProductId;
       } else {
-        // Clear if too old (probably won't sync)
-        debugPrint('   ⚠️ Recent purchase too old (${timeSincePurchase.inHours} hours), clearing temporary storage');
+        debugPrint('   ⚠️ Recent purchase too old (\\${timeSincePurchase.inHours} hours), clearing temporary storage');
         _recentlyPurchasedProductId = null;
         _recentPurchaseTime = null;
       }
@@ -235,487 +218,33 @@ class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
       debugPrint('   ℹ️ No temporary storage found');
     }
     
-    // SECOND: Check ALL entitlements (active and inactive) to find the LATEST purchase
-    // This ensures we always get the most recent subscription, even if RevenueCat hasn't fully synced
-    final activeSubscriptions = _customerInfo?.activeSubscriptions ?? [];
-    debugPrint('   - Active subscriptions count: ${activeSubscriptions.length}');
-    
-    // IMPORTANT: Check ALL entitlements (not just active) to find the latest purchase date
-    // This handles cases where RevenueCat hasn't fully synced the latest purchase
-    String? actualProductId;
-    DateTime? latestPurchaseDate;
-    
-    // FIRST: Check all entitlements to find the one with the LATEST purchase date
-    debugPrint('   🔍 Checking ALL entitlements for latest purchase date...');
-    for (final entitlementEntry in _customerInfo!.entitlements.all.entries) {
-      final ent = entitlementEntry.value;
-      if (!ent.isActive) continue; // Only check active entitlements
-      
-      final productId = ent.productIdentifier;
-      debugPrint('     - Checking entitlement: ${ent.identifier}, product: $productId');
-      
-      String? foundProductId;
-      
-      // Extract product ID from entitlement's productIdentifier
-      // PRIMARY: Handle new format (basic01, intermediate02, premium03) - current App Store Connect subscriptions
-      // FALLBACK: Handle old format (01, 02, 03) - for backward compatibility
-      if (productId == 'basic01' || productId == 'basic1') {
-        foundProductId = '01';
-      } else if (productId == 'intermediate02' || productId == 'intermediate2') {
-        foundProductId = '02';
-      } else if (productId == 'premium03' || productId == 'premium3') {
-        foundProductId = '03';
-      } else if (['01', '02', '03', '1', '2', '3'].contains(productId)) {
-        foundProductId = productId.padLeft(2, '0');
-      } else {
-        final numericMatch = RegExp(r'(\d+)').firstMatch(productId);
-        if (numericMatch != null) {
-          final extractedNumber = numericMatch.group(1);
-          if (extractedNumber != null) {
-            final num = int.tryParse(extractedNumber);
-            if (num != null && num >= 1 && num <= 3) {
-              foundProductId = extractedNumber.padLeft(2, '0');
-            }
-          }
-        }
-        
-        // Fallback: Check by name keywords
-        if (foundProductId == null) {
-          final lowerId = productId.toLowerCase();
-          if (lowerId.contains('basic') || lowerId.contains('01') || lowerId.contains('recitation')) {
-            foundProductId = '01';
-          } else if (lowerId.contains('intermediate') || lowerId.contains('02')) {
-            foundProductId = '02';
-          } else if (lowerId.contains('premium') || lowerId.contains('intensive') || lowerId.contains('03')) {
-            foundProductId = '03';
-          }
-        }
-      }
-      
-      if (foundProductId != null && ['01', '02', '03'].contains(foundProductId)) {
-        try {
-          final purchaseDate = DateTime.parse(ent.latestPurchaseDate);
-          debugPrint('       - Purchase date for $foundProductId: $purchaseDate');
-          
-          // Always use the LATEST purchase date
-          if (latestPurchaseDate == null || purchaseDate.isAfter(latestPurchaseDate)) {
-            latestPurchaseDate = purchaseDate;
-            actualProductId = foundProductId;
-            debugPrint('       ✅ Updated to LATEST product ID: $actualProductId (purchased: $purchaseDate)');
-          }
-        } catch (e) {
-          debugPrint('       ⚠️ Could not parse purchase date: $e');
-          // If date parsing fails, still use this product ID if we don't have one yet
-          if (actualProductId == null) {
-            actualProductId = foundProductId;
-            debugPrint('       ✅ Using product ID (date parsing failed): $actualProductId');
-          }
-        }
-      }
-    }
-    
-    // SECOND: If not found in entitlements, check activeSubscriptions as fallback
-    if (actualProductId == null) {
-      debugPrint('   🔍 Checking activeSubscriptions as fallback...');
-      // Look for product IDs in active subscriptions (01, 02, 03)
-      // Handle different formats: "01", "1", "com.rattil.01", "intermediate_02", etc.
-      for (final subscriptionId in activeSubscriptions) {
-      debugPrint('     - Checking subscription: $subscriptionId');
-      
-      String? foundProductId;
-      
-      // Method 1: Exact match
-      // PRIMARY: Check new format first (basic01, intermediate02, premium03) - current App Store Connect subscriptions
-      // FALLBACK: Check old format (01, 02, 03) - for backward compatibility
-      if (subscriptionId == 'basic01' || subscriptionId == 'basic1') {
-        foundProductId = '01';
-        debugPrint('       ✅ Found Basic product ID (new format): 01');
-      } else if (subscriptionId == 'intermediate02' || subscriptionId == 'intermediate2') {
-        foundProductId = '02';
-        debugPrint('       ✅ Found Intermediate product ID (new format): 02');
-      } else if (subscriptionId == 'premium03' || subscriptionId == 'premium3') {
-        foundProductId = '03';
-        debugPrint('       ✅ Found Premium product ID (new format): 03');
-      } else if (['01', '02', '03', '1', '2', '3'].contains(subscriptionId)) {
-        foundProductId = subscriptionId.padLeft(2, '0');
-        debugPrint('       ✅ Found exact match product ID (old format): $foundProductId');
-      } else {
-        // Method 2: Extract numeric part from subscription ID
-        // Handles formats like "01", "02", "03", "com.rattil.02", "product_02", etc.
-        final numericMatch = RegExp(r'(\d+)').allMatches(subscriptionId);
-        for (final match in numericMatch) {
-          final extractedNumber = match.group(1);
-          if (extractedNumber != null) {
-            final num = int.tryParse(extractedNumber);
-            if (num != null && num >= 1 && num <= 3) {
-              foundProductId = extractedNumber.padLeft(2, '0');
-              debugPrint('       ✅ Found numeric product ID in subscription: $foundProductId');
-              break;
-            }
-          }
-        }
-        
-        // Method 3: Check by product name keywords (case-insensitive)
-        if (foundProductId == null) {
-          final lowerId = subscriptionId.toLowerCase();
-          if (lowerId.contains('basic') || lowerId.contains('01') || lowerId.contains('recitation')) {
-            foundProductId = '01';
-            debugPrint('       ✅ Found Basic product by name: 01');
-          } else if (lowerId.contains('intermediate') || lowerId.contains('02')) {
-            foundProductId = '02';
-            debugPrint('       ✅ Found Intermediate product by name: 02');
-          } else if (lowerId.contains('premium') || lowerId.contains('intensive') || lowerId.contains('03')) {
-            foundProductId = '03';
-            debugPrint('       ✅ Found Premium product by name: 03');
-          }
-        }
-      }
-      
-      // If we found a product ID, check its purchase date to find the latest one
-      if (foundProductId != null) {
-        // Find the entitlement that corresponds to this subscription
-        // Check all entitlements to find the one with this product ID and get its purchase date
-        for (final entitlementEntry in _customerInfo!.entitlements.all.entries) {
-          final ent = entitlementEntry.value;
-          if (ent.isActive && ent.productIdentifier == subscriptionId) {
-            try {
-              final purchaseDate = DateTime.parse(ent.latestPurchaseDate);
-              debugPrint('       - Purchase date for $foundProductId: $purchaseDate');
-              
-              // If this is the first product or has a later purchase date, use it
-              if (latestPurchaseDate == null || purchaseDate.isAfter(latestPurchaseDate)) {
-                latestPurchaseDate = purchaseDate;
-                actualProductId = foundProductId;
-                debugPrint('       ✅ Updated to latest product ID: $actualProductId (purchased: $purchaseDate)');
-              }
-            } catch (e) {
-              // If date parsing fails, still use this product ID if we don't have one yet
-              if (actualProductId == null) {
-                actualProductId = foundProductId;
-                debugPrint('       ✅ Using product ID (date parsing failed): $actualProductId');
-              }
-            }
-            break;
-          }
-        }
-        
-        // If we couldn't find the entitlement, still use this product ID if we don't have one yet
-        if (actualProductId == null) {
-          actualProductId = foundProductId;
-          debugPrint('       ✅ Using first found product ID: $actualProductId');
-        }
-      }
-      }
-    }
-    
-    // THIRD: If not found in entitlements or activeSubscriptions, try entitlement.productIdentifier
-    if (actualProductId == null) {
-      debugPrint('   - Product ID not found in activeSubscriptions, trying entitlement.productIdentifier...');
-      final productId = entitlement.productIdentifier;
-      debugPrint('   - Entitlement productIdentifier: $productId');
-      
-      // Try to extract numeric part if it's a full identifier
-      final numericMatch = RegExp(r'(\d+)').firstMatch(productId);
-      if (numericMatch != null) {
-        final extractedNumber = numericMatch.group(1);
-        if (extractedNumber != null) {
-          actualProductId = extractedNumber.padLeft(2, '0');
-          debugPrint('   - Extracted numeric ID from entitlement: $actualProductId');
-        }
-      } else {
-        actualProductId = productId;
-      }
-    }
-    
-    // THIRD: Check allPurchasedProductIdentifiers and find the LATEST purchase
-    // IMPORTANT: Prioritize products that are in allPurchasedProductIdentifiers but NOT in activeSubscriptions
-    // These are recent purchases that haven't synced yet
-    if (actualProductId == null || !['01', '02', '03'].contains(actualProductId)) {
-      debugPrint('   - Checking allPurchasedProductIdentifiers for LATEST purchase...');
-      final allPurchased = _customerInfo?.allPurchasedProductIdentifiers ?? [];
-      final activeSubs = _customerInfo?.activeSubscriptions ?? [];
-      
-      debugPrint('   - All purchased IDs: $allPurchased');
-      debugPrint('   - Active subscriptions: $activeSubs');
-      
-      // Find products that are in allPurchased but NOT in activeSubscriptions (recent purchases)
-      final recentPurchases = allPurchased.where((id) => !activeSubs.contains(id)).toList();
-      debugPrint('   - Recent purchases (not yet in activeSubscriptions): $recentPurchases');
-      
-      String? latestProductId;
-      DateTime? latestDate;
-      
-      // FIRST: Check recent purchases (in allPurchased but not in activeSubscriptions)
-      // These are the most recent and should be prioritized
-      for (final purchasedId in recentPurchases) {
-        debugPrint('     - Checking recent purchase (not synced): $purchasedId');
-        
-        String? foundProductId;
-        
-        // Method 1: Exact match
-        // PRIMARY: Check new format first (basic01, intermediate02, premium03) - current App Store Connect subscriptions
-        // FALLBACK: Check old format (01, 02, 03) - for backward compatibility
-        if (purchasedId == 'basic01' || purchasedId == 'basic1') {
-          foundProductId = '01';
-          debugPrint('       ✅ Found Basic product ID (new format): 01');
-        } else if (purchasedId == 'intermediate02' || purchasedId == 'intermediate2') {
-          foundProductId = '02';
-          debugPrint('       ✅ Found Intermediate product ID (new format): 02');
-        } else if (purchasedId == 'premium03' || purchasedId == 'premium3') {
-          foundProductId = '03';
-          debugPrint('       ✅ Found Premium product ID (new format): 03');
-        } else if (['01', '02', '03', '1', '2', '3'].contains(purchasedId)) {
-          foundProductId = purchasedId.padLeft(2, '0');
-          debugPrint('       ✅ Found exact match (old format): $foundProductId');
-        } else {
-          // Method 2: Extract numeric part
-          final numericMatches = RegExp(r'(\d+)').allMatches(purchasedId);
-          for (final match in numericMatches) {
-            final extractedNumber = match.group(1);
-            if (extractedNumber != null) {
-              final num = int.tryParse(extractedNumber);
-              if (num != null && num >= 1 && num <= 3) {
-                foundProductId = extractedNumber.padLeft(2, '0');
-                debugPrint('       ✅ Found numeric product ID: $foundProductId');
-                break;
-              }
-            }
-          }
-          
-          // Method 3: Check by product name keywords
-          if (foundProductId == null) {
-            final lowerId = purchasedId.toLowerCase();
-            if (lowerId.contains('basic') || lowerId.contains('01') || lowerId.contains('recitation')) {
-              foundProductId = '01';
-              debugPrint('       ✅ Found Basic product by name: 01');
-            } else if (lowerId.contains('intermediate') || lowerId.contains('02')) {
-              foundProductId = '02';
-              debugPrint('       ✅ Found Intermediate product by name: 02');
-            } else if (lowerId.contains('premium') || lowerId.contains('intensive') || lowerId.contains('03')) {
-              foundProductId = '03';
-              debugPrint('       ✅ Found Premium product by name: 03');
-            }
-          }
-        }
-        
-        // If we found a valid product ID, use it immediately (recent purchases are prioritized)
-        if (foundProductId != null && ['01', '02', '03'].contains(foundProductId)) {
-          // For recent purchases, use the first one found (they're ordered by purchase time)
-          // Or try to get purchase date from entitlement if available
-          DateTime? purchaseDate;
-          for (final entitlementEntry in _customerInfo!.entitlements.all.entries) {
-            final ent = entitlementEntry.value;
-            if (ent.isActive) {
-              final entProductId = ent.productIdentifier;
-              bool matches = false;
-              if (entProductId == purchasedId) {
-                matches = true;
-              } else {
-                final numericMatch = RegExp(r'(\d+)').firstMatch(entProductId);
-                if (numericMatch != null) {
-                  final extracted = numericMatch.group(1);
-                  if (extracted != null) {
-                    final normalized = extracted.padLeft(2, '0');
-                    if (normalized == foundProductId) {
-                      matches = true;
-                    }
-                  }
-                }
-              }
-              
-              if (matches) {
-                try {
-                  purchaseDate = DateTime.parse(ent.latestPurchaseDate);
-                  debugPrint('       - Purchase date for $foundProductId: $purchaseDate');
-                  break;
-                } catch (e) {
-                  debugPrint('       ⚠️ Could not parse purchase date: $e');
-                }
-              }
-            }
-          }
-          
-          // Use this product ID if it's newer or if we don't have one yet
-          if (latestDate == null) {
-            // First product found, use it
-            if (purchaseDate != null) {
-              latestDate = purchaseDate;
-            }
-            latestProductId = foundProductId;
-            debugPrint('       ✅ Using recent purchase product ID: $latestProductId');
-          } else if (purchaseDate != null && purchaseDate.isAfter(latestDate)) {
-            // This product is newer, use it
-            latestDate = purchaseDate;
-            latestProductId = foundProductId;
-            debugPrint('       ✅ Updated to newer recent purchase product ID: $latestProductId');
-          } else if (latestProductId == null) {
-            // No date available but we don't have a product ID yet, use it
-            latestProductId = foundProductId;
-            debugPrint('       ✅ Using recent purchase product ID (no date): $latestProductId');
-          }
-          // Don't break - continue to check all recent purchases to find the latest
-        }
-      }
-      
-      // SECOND: If no recent purchases found, check all purchased products
-      if (latestProductId == null) {
-        debugPrint('   - No recent purchases found, checking all purchased products...');
-        for (final purchasedId in allPurchased) {
-          debugPrint('     - Checking purchased ID: $purchasedId');
-          
-          String? foundProductId;
-          
-          // Method 1: Exact match for old format (01, 02, 03) or new format (basic01, intermediate02, premium03)
-          if (['01', '02', '03', '1', '2', '3'].contains(purchasedId)) {
-            foundProductId = purchasedId.padLeft(2, '0');
-            debugPrint('       ✅ Found exact match: $foundProductId');
-          } else if (purchasedId == 'basic01' || purchasedId == 'basic1') {
-            foundProductId = '01';
-            debugPrint('       ✅ Found Basic product ID: 01');
-          } else if (purchasedId == 'intermediate02' || purchasedId == 'intermediate2') {
-            foundProductId = '02';
-            debugPrint('       ✅ Found Intermediate product ID: 02');
-          } else if (purchasedId == 'premium03' || purchasedId == 'premium3') {
-            foundProductId = '03';
-            debugPrint('       ✅ Found Premium product ID: 03');
-          } else {
-            // Method 2: Extract numeric part
-            final numericMatches = RegExp(r'(\d+)').allMatches(purchasedId);
-            for (final match in numericMatches) {
-              final extractedNumber = match.group(1);
-              if (extractedNumber != null) {
-                final num = int.tryParse(extractedNumber);
-                if (num != null && num >= 1 && num <= 3) {
-                  foundProductId = extractedNumber.padLeft(2, '0');
-                  debugPrint('       ✅ Found numeric product ID: $foundProductId');
-                  break;
-                }
-              }
-            }
-            
-            // Method 3: Check by product name keywords
-            if (foundProductId == null) {
-              final lowerId = purchasedId.toLowerCase();
-              if (lowerId.contains('basic') || lowerId.contains('01') || lowerId.contains('recitation')) {
-                foundProductId = '01';
-                debugPrint('       ✅ Found Basic product by name: 01');
-              } else if (lowerId.contains('intermediate') || lowerId.contains('02')) {
-                foundProductId = '02';
-                debugPrint('       ✅ Found Intermediate product by name: 02');
-              } else if (lowerId.contains('premium') || lowerId.contains('intensive') || lowerId.contains('03')) {
-                foundProductId = '03';
-                debugPrint('       ✅ Found Premium product by name: 03');
-              }
-            }
-          }
-          
-          // If we found a valid product ID, check its purchase date
-          if (foundProductId != null && ['01', '02', '03'].contains(foundProductId)) {
-            // Find the entitlement that corresponds to this product ID
-            for (final entitlementEntry in _customerInfo!.entitlements.all.entries) {
-              final ent = entitlementEntry.value;
-              // Check if this entitlement's product identifier matches the purchased ID
-              if (ent.isActive) {
-                final entProductId = ent.productIdentifier;
-                // Try to match the product identifier
-                bool matches = false;
-                if (entProductId == purchasedId) {
-                  matches = true;
-                } else {
-                  // Try numeric extraction
-                  final numericMatch = RegExp(r'(\d+)').firstMatch(entProductId);
-                  if (numericMatch != null) {
-                    final extracted = numericMatch.group(1);
-                    if (extracted != null) {
-                      final normalized = extracted.padLeft(2, '0');
-                      if (normalized == foundProductId) {
-                        matches = true;
-                      }
-                    }
-                  }
-                }
-                
-                if (matches) {
-                  try {
-                    final purchaseDate = DateTime.parse(ent.latestPurchaseDate);
-                    debugPrint('       - Purchase date for $foundProductId: $purchaseDate');
-                    
-                    // If this is the first product or has a later purchase date, use it
-                    if (latestDate == null || purchaseDate.isAfter(latestDate)) {
-                      latestDate = purchaseDate;
-                      latestProductId = foundProductId;
-                      debugPrint('       ✅ Updated to LATEST product ID: $latestProductId (purchased: $purchaseDate)');
-                    }
-                  } catch (e) {
-                    debugPrint('       ⚠️ Could not parse purchase date: $e');
-                    // If date parsing fails, still use this product ID if we don't have one yet
-                    if (latestProductId == null) {
-                      latestProductId = foundProductId;
-                      debugPrint('       ✅ Using product ID (date parsing failed): $latestProductId');
-                    }
-                  }
-                  break;
-                }
-              }
-            }
-          }
-        }
-      }
-      
-      // Use the latest product ID if we found one
-      if (latestProductId != null) {
-        actualProductId = latestProductId;
-        debugPrint('   ✅ Using LATEST purchased product ID from allPurchasedProductIdentifiers: $actualProductId');
-      }
-    }
-    
-    if (actualProductId != null) {
-      debugPrint('✅ [RevenueCatProvider] Found subscribed product ID: $actualProductId');
-    } else {
-      debugPrint('❌ [RevenueCatProvider] Could not determine subscribed product ID');
-    }
-    
-    return actualProductId;
+    // Use the full productIdentifier from the active entitlement
+    return entitlement.productIdentifier;
   }
 
   /// Check if a specific product ID (01, 02, 03) is the subscribed product.
   /// Handles both "02" and "2" formats for product IDs.
   bool isProductSubscribed(String productId) {
-    // Normalize productId for comparison
-    final normalizedProductId = productId.padLeft(2, '0');
-
     // Check optimistic state: recently purchased product (not yet synced)
     if (_recentlyPurchasedProductId != null && _recentPurchaseTime != null) {
       final timeSincePurchase = DateTime.now().difference(_recentPurchaseTime!);
       if (timeSincePurchase.inHours < 2) {
-        // Normalize recently purchased product ID
-        final normalizedRecentId = _recentlyPurchasedProductId!.padLeft(2, '0');
-        if (normalizedRecentId == normalizedProductId ||
-            (int.tryParse(_recentlyPurchasedProductId!) != null &&
-             int.tryParse(productId) != null &&
-             int.parse(_recentlyPurchasedProductId!) == int.parse(productId))) {
+        if (_recentlyPurchasedProductId == productId) {
           debugPrint('⚡ [RevenueCatProvider] Optimistic match: $productId == $_recentlyPurchasedProductId');
           return true;
         }
       }
     }
-
     // Fallback: check actual subscription
     final subscribedId = subscribedProductId;
     if (subscribedId == null) {
       debugPrint('❌ [RevenueCatProvider] No subscribed product - checking $productId: false');
       return false;
     }
-    final normalizedSubscribedId = subscribedId.padLeft(2, '0');
-    final isSubscribed = normalizedSubscribedId == normalizedProductId ||
-        (int.tryParse(subscribedId) != null && 
-         int.tryParse(productId) != null && 
-         int.parse(subscribedId) == int.parse(productId));
+    final isSubscribed = subscribedId == productId;
     debugPrint('🔎 [RevenueCatProvider] Checking if $productId is subscribed:');
-    debugPrint('   - Subscribed ID (raw): $subscribedId');
-    debugPrint('   - Subscribed ID (normalized): $normalizedSubscribedId');
-    debugPrint('   - Checking ID (raw): $productId');
-    debugPrint('   - Checking ID (normalized): $normalizedProductId');
+    debugPrint('   - Subscribed ID: $subscribedId');
+    debugPrint('   - Checking ID: $productId');
     debugPrint('   - Match result: $isSubscribed');
     return isSubscribed;
   }

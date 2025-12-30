@@ -56,62 +56,19 @@ class _SubscriberDashboardScreenState extends State<SubscriberDashboardScreen> {
       return const SizedBox.shrink();
     }
 
-    // Find the package that matches the subscribed product ID
-    Package? subscribedPackage;
+    // Find the package that matches the subscribed product ID (use productId field)
     debugPrint('🔍 [SubscriberDashboardScreen] Looking for package with product ID: $subscribedProductId');
     debugPrint('   - Available packages in model:');
     for (final pkg in packages) {
-      debugPrint('     • ${pkg.name} (ID: ${pkg.id})');
+      debugPrint('     • ${pkg.name} (ID: ${pkg.id}, productId: ${pkg.productId})');
     }
     
-    try {
-      // Try to parse as integer (handles both "02" and "2")
-      final productIdInt = int.parse(subscribedProductId);
-      debugPrint('   - Parsed product ID as integer: $productIdInt');
-      
-      subscribedPackage = packages.firstWhere(
-        (pkg) {
-          final matches = pkg.id == productIdInt;
-          debugPrint('     - Checking ${pkg.name} (ID: ${pkg.id}) == $productIdInt: $matches');
-          return matches;
-        },
-        orElse: () {
-          debugPrint('   ⚠️ No exact match found, trying string comparison...');
-          // Try string comparison as fallback
-          final productIdStr = subscribedProductId.padLeft(2, '0');
-          for (final pkg in packages) {
-            final pkgIdStr = pkg.id.toString().padLeft(2, '0');
-            if (pkgIdStr == productIdStr) {
-              debugPrint('   ✅ Found match via string: ${pkg.name}');
-              return pkg;
-            }
-          }
-          debugPrint('   ❌ No match found, returning null');
-          throw StateError('No matching package found');
-        },
-      );
-    } catch (e) {
-      debugPrint('   ❌ Error parsing/finding package: $e');
-      // Try string-based matching as fallback
-      final productIdStr = subscribedProductId.padLeft(2, '0');
-      debugPrint('   - Trying string-based matching with: $productIdStr');
-      try {
-        subscribedPackage = packages.firstWhere(
-          (pkg) {
-            final pkgIdStr = pkg.id.toString().padLeft(2, '0');
-            final matches = pkgIdStr == productIdStr;
-            debugPrint('     - Checking ${pkg.name} (ID: ${pkg.id.toString().padLeft(2, '0')}) == $productIdStr: $matches');
-            return matches;
-          },
-        );
-        debugPrint('   ✅ Found package via string matching: ${subscribedPackage.name}');
-      } catch (e2) {
-        debugPrint('   ❌ String matching also failed: $e2');
-        subscribedPackage = null;
-      }
-    }
+    final subscribedPackage = packages.where((pkg) => pkg.productId == subscribedProductId).toList().isNotEmpty
+      ? packages.firstWhere((pkg) => pkg.productId == subscribedProductId)
+      : null;
 
     if (subscribedPackage == null) {
+      debugPrint('   ❌ No matching package found for productId: $subscribedProductId');
       return const SizedBox.shrink();
     }
 
