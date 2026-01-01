@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rattil/utils/error_handler.dart';
+import 'package:rattil/providers/revenuecat_provider.dart';
 
 class AuthProvider extends ChangeNotifier {
   bool _isLoading = false;
@@ -16,6 +17,9 @@ class AuthProvider extends ChangeNotifier {
   String? get userGender => _userGender;
 
   User? get currentUser => FirebaseAuth.instance.currentUser;
+  
+  /// Check if user is in guest mode (not logged in)
+  bool get isGuest => currentUser == null;
 
   Future<void> fetchUserData() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -102,6 +106,7 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required String password,
     required BuildContext context,
+    RevenueCatProvider? revenueCatProvider, // Optional: pass RevenueCat provider
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -122,6 +127,13 @@ class AuthProvider extends ChangeNotifier {
       }
       
       await fetchUserData(); // Fetch user data after login
+      
+      // Link RevenueCat to Firebase user for cross-device subscription sync
+      if (user != null && revenueCatProvider != null) {
+        debugPrint('🔗 [AuthProvider] Linking RevenueCat to Firebase user: ${user.uid}');
+        await revenueCatProvider.linkToFirebaseUser(user.uid);
+      }
+      
       _isLoading = false;
       notifyListeners();
       return null;
@@ -143,7 +155,13 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> signOut() async {
+  Future<void> signOut({RevenueCatProvider? revenueCatProvider}) async {
+    // Unlink RevenueCat from Firebase user (switch to anonymous/guest mode)
+    if (revenueCatProvider != null) {
+      debugPrint('🔓 [AuthProvider] Unlinking RevenueCat from Firebase user');
+      await revenueCatProvider.unlinkFromFirebaseUser();
+    }
+    
     await FirebaseAuth.instance.signOut();
     _userName = null;
     _userEmail = null;

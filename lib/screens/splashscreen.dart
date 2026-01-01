@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:rattil/screens/auth/sign_in.dart';
 import 'package:rattil/screens/home_screen.dart';
+import 'package:rattil/screens/auth/sign_in.dart';
 import 'dart:async';
 import 'package:rattil/utils/app_colors.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
+import 'package:rattil/providers/auth_provider.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -97,18 +98,16 @@ class _SplashScreenState extends State<SplashScreen>
 
   void _navigateBasedOnAuthState() {
     if (!mounted) return;
-    final user = FirebaseAuth.instance.currentUser;
+    final user = Provider.of<AuthProvider>(context, listen: false).currentUser;
     if (user != null) {
-      // User is logged in, go to HomeScreen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => HomeScreen()),
       );
     } else {
-      // User is not logged in, go to SignInScreen
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const SignInScreen()),
+        MaterialPageRoute(builder: (context) => SignInScreen()),
       );
     }
   }

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/providers/drawer_provider.dart';
+import 'package:rattil/providers/auth_provider.dart';
 
 class DrawerMenu extends StatelessWidget {
   final VoidCallback closeDrawer;
@@ -34,6 +35,10 @@ class DrawerMenu extends StatelessWidget {
     final drawerProvider = Provider.of<DrawerProvider>(context);
     final isDarkMode = themeProvider.isDarkMode;
     final isDrawerOpen = drawerProvider.isDrawerOpen;
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final isGuest = authProvider.currentUser == null;
+    final displayName = isGuest ? 'Guest' : userName;
+    final displayEmail = isGuest ? '' : userEmail;
     
     debugPrint('DrawerMenu: isDrawerOpen=$isDrawerOpen, isDarkMode=$isDarkMode');
     final drawerBg = isDarkMode ? const Color(0xFF1F2937) : Colors.white;
@@ -106,7 +111,7 @@ class DrawerMenu extends StatelessWidget {
                         ),
                         child: Row(
                           children: [
-                            userAvatarUrl != null && userAvatarUrl!.isNotEmpty
+                            userAvatarUrl != null && userAvatarUrl!.isNotEmpty && !isGuest
                                 ? CircleAvatar(
                                     radius: 32,
                                     backgroundImage: NetworkImage(userAvatarUrl!),
@@ -117,14 +122,12 @@ class DrawerMenu extends StatelessWidget {
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       gradient: LinearGradient(
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
                                         colors: [avatarGradientStart, avatarGradientEnd],
                                       ),
                                     ),
                                     child: Center(
                                       child: Text(
-                                        userName.isNotEmpty ? userName[0].toUpperCase() : '',
+                                        displayName.isNotEmpty ? displayName[0].toUpperCase() : 'G',
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 24,
@@ -140,7 +143,7 @@ class DrawerMenu extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    userName,
+                                    displayName,
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.w600,
@@ -149,16 +152,27 @@ class DrawerMenu extends StatelessWidget {
                                     ),
                                   ),
                                   const SizedBox(height: 2),
-                                  Text(
-                                    userEmail,
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      color: subtextColor,
-                                      decoration: TextDecoration.none,
+                                  if (!isGuest)
+                                    Text(
+                                      displayEmail,
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        color: subtextColor,
+                                        decoration: TextDecoration.none,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
                                     ),
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                  ),
+                                  if (isGuest)
+                                    Text(
+                                      'Guest Mode',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        color: subtextColor,
+                                        fontStyle: FontStyle.italic,
+                                        decoration: TextDecoration.none,
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),

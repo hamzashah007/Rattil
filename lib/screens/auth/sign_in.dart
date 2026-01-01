@@ -7,6 +7,7 @@ import 'package:rattil/widgets/app_snackbar.dart';
 import 'package:provider/provider.dart';
 import 'package:rattil/providers/auth_provider.dart' as my_auth;
 import 'package:rattil/providers/theme_provider.dart';
+import 'package:rattil/providers/revenuecat_provider.dart';
 
 import 'package:rattil/widgets/gradient_button.dart';
 import 'package:rattil/screens/auth/sign_up.dart';
@@ -57,10 +58,13 @@ class _SignInScreenState extends State<SignInScreen> {
 	Future<void> _handleSignIn(BuildContext context) async {
 		if (_formKey.currentState!.validate()) {
 			final authProvider = Provider.of<my_auth.AuthProvider>(context, listen: false);
+			final revenueCatProvider = Provider.of<RevenueCatProvider>(context, listen: false);
+			
 			final error = await authProvider.signIn(
 				email: _emailController.text,
 				password: _passwordController.text,
 				context: context,
+				revenueCatProvider: revenueCatProvider, // Pass RevenueCat provider
 			);
 			if (error == null && mounted) {
 				Navigator.pushReplacement(
@@ -237,6 +241,55 @@ class _SignInScreenState extends State<SignInScreen> {
 															text: 'Sign In',
 															isLoading: false, // You can add loading state to provider if needed
 															onPressed: () => _handleSignIn(context),
+														),
+														const SizedBox(height: 16),
+														// Continue as Guest button
+														OutlinedButton(
+															onPressed: () {
+																debugPrint('👤 [SignInScreen] Continue as Guest tapped - navigating to HomeScreen');
+																Navigator.pushReplacement(
+																	context,
+																	MaterialPageRoute(builder: (context) => HomeScreen()),
+																);
+															},
+															style: OutlinedButton.styleFrom(
+																foregroundColor: AppColors.teal700,
+																side: BorderSide(color: AppColors.teal700, width: 2),
+																padding: const EdgeInsets.symmetric(vertical: 16),
+																shape: RoundedRectangleBorder(
+																	borderRadius: BorderRadius.circular(12),
+																),
+																minimumSize: const Size(double.infinity, 50),
+															),
+															child: Row(
+																mainAxisAlignment: MainAxisAlignment.center,
+																children: [
+																	Icon(Icons.person_outline, color: AppColors.teal700),
+																	const SizedBox(width: 8),
+																	Text(
+																		'Continue as Guest',
+																		style: TextStyle(
+																			fontSize: 16,
+																			fontWeight: FontWeight.bold,
+																			color: AppColors.teal700,
+																		),
+																	),
+																],
+															),
+														),
+														const SizedBox(height: 8),
+														// Guest mode info text
+														Padding(
+															padding: const EdgeInsets.symmetric(horizontal: 16),
+															child: Text(
+																'Browse and purchase without an account.\nSign in later to access content across devices.',
+																textAlign: TextAlign.center,
+																style: TextStyle(
+																	fontSize: 12,
+																	color: subtitleColor,
+																	height: 1.4,
+																),
+															),
 														),
 														const SizedBox(height: 24),
 														// Sign Up link

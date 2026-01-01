@@ -301,6 +301,54 @@ class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
     });
   }
   
+  /// Link RevenueCat to Firebase user (User Mode)
+  /// Call this when user signs in to sync subscription across devices
+  Future<void> linkToFirebaseUser(String firebaseUserId) async {
+    try {
+      debugPrint('🔗 [RevenueCatProvider] ========== LINKING TO FIREBASE USER ==========');
+      debugPrint('👤 [RevenueCatProvider] Firebase User ID: $firebaseUserId');
+      debugPrint('📞 [RevenueCatProvider] Calling Purchases.logIn()...');
+      
+      final loginResult = await Purchases.logIn(firebaseUserId);
+      
+      debugPrint('✅ [RevenueCatProvider] Successfully linked to Firebase user');
+      debugPrint('   - Created: ${loginResult.created}');
+      debugPrint('   - Customer Info: ${loginResult.customerInfo.originalAppUserId}');
+      
+      // Update customer info with linked account
+      _setCustomerInfo(loginResult.customerInfo);
+      
+      debugPrint('🔗 [RevenueCatProvider] ========== LINK COMPLETED ==========');
+    } catch (e) {
+      debugPrint('❌ [RevenueCatProvider] Error linking to Firebase user: $e');
+      errorMessage = 'Failed to link account. Please try again.';
+      notifyListeners();
+    }
+  }
+  
+  /// Unlink from Firebase user (Guest Mode)
+  /// Call this when user logs out to switch to anonymous mode
+  Future<void> unlinkFromFirebaseUser() async {
+    try {
+      debugPrint('🔓 [RevenueCatProvider] ========== UNLINKING FROM FIREBASE USER ==========');
+      debugPrint('📞 [RevenueCatProvider] Calling Purchases.logOut()...');
+      
+      final customerInfo = await Purchases.logOut();
+      
+      debugPrint('✅ [RevenueCatProvider] Successfully unlinked (now anonymous)');
+      debugPrint('   - Customer Info: ${customerInfo.originalAppUserId}');
+      
+      // Update customer info with anonymous account
+      _setCustomerInfo(customerInfo);
+      
+      debugPrint('🔓 [RevenueCatProvider] ========== UNLINK COMPLETED ==========');
+    } catch (e) {
+      debugPrint('❌ [RevenueCatProvider] Error unlinking from Firebase user: $e');
+      errorMessage = 'Failed to unlink account. Please try again.';
+      notifyListeners();
+    }
+  }
+  
   Future<void> _refreshAll() async {
     isLoading = true;
     errorMessage = null;
@@ -647,26 +695,72 @@ class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<CustomerInfo?> restorePurchases() async {
+    debugPrint('🔄 [RevenueCatProvider] ========== RESTORE PURCHASES STARTED ==========');
+    debugPrint('📱 [RevenueCatProvider] Initiating restore purchases flow...');
+    
     isPurchasing = true;
     errorMessage = null;
     notifyListeners();
+    debugPrint('✅ [RevenueCatProvider] Set isPurchasing = true, cleared errorMessage');
+    
     try {
+      debugPrint('🍎 [RevenueCatProvider] Calling Purchases.restorePurchases() - Contacting Apple...');
+      final startTime = DateTime.now();
+      
       final info = await Purchases.restorePurchases();
+      
+      final duration = DateTime.now().difference(startTime);
+      debugPrint('⏱️ [RevenueCatProvider] Purchases.restorePurchases() completed in ${duration.inMilliseconds}ms');
+      debugPrint('📦 [RevenueCatProvider] CustomerInfo received from Apple');
+      debugPrint('   - Original App User ID: ${info.originalAppUserId}');
+      debugPrint('   - Active Subscriptions: ${info.activeSubscriptions.length}');
+      debugPrint('   - All Purchased Products: ${info.allPurchasedProductIdentifiers.length}');
+      debugPrint('   - Active Entitlements: ${info.entitlements.active.length}');
+      
+      if (info.activeSubscriptions.isNotEmpty) {
+        debugPrint('✅ [RevenueCatProvider] Found active subscriptions:');
+        for (final sub in info.activeSubscriptions) {
+          debugPrint('     • $sub');
+        }
+      } else {
+        debugPrint('⚠️ [RevenueCatProvider] No active subscriptions found');
+      }
+      
+      debugPrint('📊 [RevenueCatProvider] Updating customer info...');
       _setCustomerInfo(info);
+      debugPrint('✅ [RevenueCatProvider] Customer info updated successfully');
+      
       return info;
     } on PlatformException catch (e) {
+      debugPrint('❌ [RevenueCatProvider] PlatformException caught:');
+      debugPrint('   - Code: ${e.code}');
+      debugPrint('   - Message: ${e.message}');
+      debugPrint('   - Details: ${e.details}');
+      
       final code = PurchasesErrorHelper.getErrorCode(e);
+      debugPrint('   - Parsed Error Code: $code');
+      
       if (code == PurchasesErrorCode.purchaseCancelledError) {
+        debugPrint('🚫 [RevenueCatProvider] User cancelled restore - returning null');
         return null;
       }
+      
       errorMessage = _friendlyMessageForCode(code, e.message);
+      debugPrint('❌ [RevenueCatProvider] Error message set: $errorMessage');
       return null;
     } catch (e) {
+      debugPrint('❌ [RevenueCatProvider] General exception caught:');
+      debugPrint('   - Type: ${e.runtimeType}');
+      debugPrint('   - Message: $e');
+      
       errorMessage = _friendlyMessageForCode(null, e.toString());
+      debugPrint('❌ [RevenueCatProvider] Error message set: $errorMessage');
       return null;
     } finally {
       isPurchasing = false;
       notifyListeners();
+      debugPrint('🏁 [RevenueCatProvider] Set isPurchasing = false, notified listeners');
+      debugPrint('🔄 [RevenueCatProvider] ========== RESTORE PURCHASES ENDED ==========');
     }
   }
 

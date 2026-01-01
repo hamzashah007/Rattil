@@ -234,15 +234,17 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: dialogBgColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('Delete Account', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+        return Listener(
+          onPointerDown: (_) => FocusScope.of(context).unfocus(),
+          child: AlertDialog(
+            backgroundColor: dialogBgColor,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Text('Delete Account', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 Text(
                   'Are you sure you want to permanently delete your account?',
                   style: TextStyle(color: textColor, fontSize: 16, fontWeight: FontWeight.bold),
@@ -298,6 +300,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
               child: Text('Delete', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
             ),
           ],
+          ),
         );
       },
     );
@@ -313,383 +316,419 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     final subtextColor = isDarkMode ? ThemeColors.darkSubtitle : ThemeColors.lightSubtitle;
     final accentColor = ThemeColors.primaryTeal;
     final inputBg = isDarkMode ? Color(0xFF374151) : Color(0xFFF3F4F6);
+    final authProvider = Provider.of<app_auth.AuthProvider>(context, listen: false);
+    final isGuest = authProvider.currentUser == null;
+
+    if (isGuest) {
+      return Scaffold(
+        backgroundColor: bgColor,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.person_outline, size: 64, color: accentColor),
+              const SizedBox(height: 16),
+              Text('Guest Mode', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textColor)),
+              const SizedBox(height: 12),
+              Text('Sign In / Sign Up to see or change information', style: TextStyle(fontSize: 16, color: subtextColor)),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => SignInScreen()));
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: accentColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('Sign In / Sign Up'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Consumer<ProfileProvider>(
       builder: (context, provider, _) {
-        return Scaffold(
+        return Listener(
+          onPointerDown: (_) => FocusScope.of(context).unfocus(),
+          child: Scaffold(
             backgroundColor: bgColor,
             body: _tabController == null
                 ? Center(child: CircularProgressIndicator(color: accentColor))
                 : Column(
-              children: [
-                const SizedBox(height: 24),
-                // Profile Avatar and Info
-                Center(
-                  child: Column(
                     children: [
-                      Stack(
-                        children: [
-                          CircleAvatar(
-                            radius: 40,
-                            backgroundColor: _getAvatarColor(),
-                            child: Text(
-                              widget.userName.isNotEmpty ? widget.userName[0].toUpperCase() : 'U',
-                              style: const TextStyle(
-                                fontSize: 32,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
+                      const SizedBox(height: 24),
+                        // Profile Avatar and Info
+                        Center(
+                          child: Column(
+                            children: [
+                              Stack(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 40,
+                                    backgroundColor: _getAvatarColor(),
+                                    child: Text(
+                                      widget.userName.isNotEmpty ? widget.userName[0].toUpperCase() : 'U',
+                                      style: const TextStyle(
+                                        fontSize: 32,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
+                              const SizedBox(height: 12),
+                              Text(widget.userName, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
+                              const SizedBox(height: 4),
+                              Text(widget.userEmail, style: TextStyle(fontSize: 15, color: subtextColor)),
+                            ],
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(widget.userName, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
-                      const SizedBox(height: 4),
-                      Text(widget.userEmail, style: TextStyle(fontSize: 15, color: subtextColor)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // Tab Bar
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20),
-                  decoration: BoxDecoration(
-                    color: cardColor,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: TabBar(
-                    controller: _tabController!,
-                    indicator: BoxDecoration(
-                      gradient: LinearGradient(colors: [ThemeColors.primaryTeal, ThemeColors.primaryTealDark]),
-                      borderRadius: BorderRadius.circular(12),
+                        ),
+                        const SizedBox(height: 24),
+                        // Tab Bar
+                        Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 20),
+                          decoration: BoxDecoration(
+                            color: cardColor,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: TabBar(
+                            controller: _tabController!,
+                            indicator: BoxDecoration(
+                              gradient: LinearGradient(colors: [ThemeColors.primaryTeal, ThemeColors.primaryTealDark]),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            labelColor: Colors.white,
+                            unselectedLabelColor: subtextColor,
+                            indicatorSize: TabBarIndicatorSize.tab,
+                            dividerColor: Colors.transparent,
+                            tabs: const [
+                              Tab(text: 'General'),
+                              Tab(text: 'Password'),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        // Tab Content
+                        Expanded(
+                          child: TabBarView(
+                            controller: _tabController!,
+                            children: [
+                              // General Tab
+                              SingleChildScrollView(
+                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Full Name', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller: _nameController,
+                                      style: TextStyle(color: textColor),
+                                      decoration: InputDecoration(
+                                        hintText: 'Enter your name',
+                                        hintStyle: TextStyle(color: subtextColor),
+                                        filled: true,
+                                        fillColor: inputBg,
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: BorderSide(color: accentColor, width: 2),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text('Email', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller: _emailController,
+                                      enabled: false,
+                                      style: TextStyle(color: subtextColor),
+                                      decoration: InputDecoration(
+                                        hintText: '', // Remove placeholder
+                                        hintStyle: TextStyle(color: subtextColor),
+                                        filled: true,
+                                        fillColor: inputBg.withOpacity(0.5),
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text('Gender', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onTap: () => provider.setGender('Male'),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(vertical: 14),
+                                              decoration: BoxDecoration(
+                                                color: provider.selectedGender == 'Male' ? accentColor : inputBg,
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  'Male',
+                                                  style: TextStyle(
+                                                    color: provider.selectedGender == 'Male' ? Colors.white : textColor,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onTap: () => provider.setGender('Female'),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(vertical: 14),
+                                              decoration: BoxDecoration(
+                                                color: provider.selectedGender == 'Female' ? accentColor : inputBg,
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                              child: Center(
+                                                child: Text(
+                                                  'Female',
+                                                  style: TextStyle(
+                                                    color: provider.selectedGender == 'Female' ? Colors.white : textColor,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 32),
+                                    // Save Button
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(12),
+                                        onTap: provider.isLoading ? null : _updateProfile,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(colors: [Color(0xFF0d9488), Color(0xFF14b8a6)]),
+                                            borderRadius: BorderRadius.circular(12),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.10),
+                                                blurRadius: 10,
+                                                offset: Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          padding: const EdgeInsets.symmetric(vertical: 14),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              if (provider.isLoading)
+                                                SizedBox(
+                                                  width: 20,
+                                                  height: 20,
+                                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                                )
+                                              else
+                                                Text(
+                                                  'Update Profile',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    // Delete Account Button
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(12),
+                                        onTap: provider.isDeleteLoading ? null : _showDeleteAccountDialog,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(colors: [Color(0xFFEF4444), Color(0xFFDC2626)]),
+                                            borderRadius: BorderRadius.circular(12),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.10),
+                                                blurRadius: 10,
+                                                offset: Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          padding: const EdgeInsets.symmetric(vertical: 14),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              if (provider.isDeleteLoading)
+                                                SizedBox(
+                                                  width: 20,
+                                                  height: 20,
+                                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                                )
+                                              else
+                                                Text(
+                                                  'Delete Account',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 55), // Increased padding below Delete Account button
+                                    // Add extra padding to avoid overlap with navbar
+                                    SizedBox(height: 32),
+                                  ],
+                                ),
+                              ),
+                              // Password Tab
+                              SingleChildScrollView(
+                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Current Password', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller: _currentPasswordController,
+                                      obscureText: true,
+                                      style: TextStyle(color: textColor),
+                                      decoration: InputDecoration(
+                                        hintText: 'Enter current password',
+                                        hintStyle: TextStyle(color: subtextColor),
+                                        filled: true,
+                                        fillColor: inputBg,
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: BorderSide(color: accentColor, width: 2),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text('New Password', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller: _newPasswordController,
+                                      obscureText: true,
+                                      style: TextStyle(color: textColor),
+                                      decoration: InputDecoration(
+                                        hintText: 'Enter new password',
+                                        hintStyle: TextStyle(color: subtextColor),
+                                        filled: true,
+                                        fillColor: inputBg,
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: BorderSide(color: accentColor, width: 2),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text('Confirm Password', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
+                                    const SizedBox(height: 8),
+                                    TextField(
+                                      controller: _confirmPasswordController,
+                                      obscureText: true,
+                                      style: TextStyle(color: textColor),
+                                      decoration: InputDecoration(
+                                        hintText: 'Confirm new password',
+                                        hintStyle: TextStyle(color: subtextColor),
+                                        filled: true,
+                                        fillColor: inputBg,
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                          borderSide: BorderSide(color: accentColor, width: 2),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 32),
+                                    // Update Password Button
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(12),
+                                        onTap: provider.isPasswordLoading ? null : _updatePassword,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(colors: [Color(0xFF0d9488), Color(0xFF14b8a6)]),
+                                            borderRadius: BorderRadius.circular(12),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.10),
+                                                blurRadius: 10,
+                                                offset: Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          padding: const EdgeInsets.symmetric(vertical: 14),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              if (provider.isPasswordLoading)
+                                                SizedBox(
+                                                  width: 20,
+                                                  height: 20,
+                                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                                )
+                                              else
+                                                Text(
+                                                  'Update Password',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 32),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    labelColor: Colors.white,
-                    unselectedLabelColor: subtextColor,
-                    indicatorSize: TabBarIndicatorSize.tab,
-                    dividerColor: Colors.transparent,
-                    tabs: const [
-                      Tab(text: 'General'),
-                      Tab(text: 'Password'),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                // Tab Content
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController!,
-                    children: [
-                      // General Tab
-                      SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Full Name', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: _nameController,
-                              style: TextStyle(color: textColor),
-                              decoration: InputDecoration(
-                                hintText: 'Enter your name',
-                                hintStyle: TextStyle(color: subtextColor),
-                                filled: true,
-                                fillColor: inputBg,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(color: accentColor, width: 2),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Text('Email', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: _emailController,
-                              enabled: false,
-                              style: TextStyle(color: subtextColor),
-                              decoration: InputDecoration(
-                                hintText: '', // Remove placeholder
-                                hintStyle: TextStyle(color: subtextColor),
-                                filled: true,
-                                fillColor: inputBg.withOpacity(0.5),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Text('Gender', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: GestureDetector(
-                                    onTap: () => provider.setGender('Male'),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(vertical: 14),
-                                      decoration: BoxDecoration(
-                                        color: provider.selectedGender == 'Male' ? accentColor : inputBg,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          'Male',
-                                          style: TextStyle(
-                                            color: provider.selectedGender == 'Male' ? Colors.white : textColor,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: GestureDetector(
-                                    onTap: () => provider.setGender('Female'),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(vertical: 14),
-                                      decoration: BoxDecoration(
-                                        color: provider.selectedGender == 'Female' ? accentColor : inputBg,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          'Female',
-                                          style: TextStyle(
-                                            color: provider.selectedGender == 'Female' ? Colors.white : textColor,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 32),
-                            // Save Button
-                            SizedBox(
-                              width: double.infinity,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(12),
-                                onTap: provider.isLoading ? null : _updateProfile,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(colors: [Color(0xFF0d9488), Color(0xFF14b8a6)]),
-                                    borderRadius: BorderRadius.circular(12),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.10),
-                                        blurRadius: 10,
-                                        offset: Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      if (provider.isLoading)
-                                        SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                        )
-                                      else
-                                        Text(
-                                          'Update Profile',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            // Delete Account Button
-                            SizedBox(
-                              width: double.infinity,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(12),
-                                onTap: provider.isDeleteLoading ? null : _showDeleteAccountDialog,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(colors: [Color(0xFFEF4444), Color(0xFFDC2626)]),
-                                    borderRadius: BorderRadius.circular(12),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.10),
-                                        blurRadius: 10,
-                                        offset: Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      if (provider.isDeleteLoading)
-                                        SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                        )
-                                      else
-                                        Text(
-                                          'Delete Account',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 55), // Increased padding below Delete Account button
-                            // Add extra padding to avoid overlap with navbar
-                            SizedBox(height: 32),
-                          ],
-                        ),
-                      ),
-                      // Password Tab
-                      SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Current Password', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: _currentPasswordController,
-                              obscureText: true,
-                              style: TextStyle(color: textColor),
-                              decoration: InputDecoration(
-                                hintText: 'Enter current password',
-                                hintStyle: TextStyle(color: subtextColor),
-                                filled: true,
-                                fillColor: inputBg,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(color: accentColor, width: 2),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Text('New Password', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: _newPasswordController,
-                              obscureText: true,
-                              style: TextStyle(color: textColor),
-                              decoration: InputDecoration(
-                                hintText: 'Enter new password',
-                                hintStyle: TextStyle(color: subtextColor),
-                                filled: true,
-                                fillColor: inputBg,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(color: accentColor, width: 2),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Text('Confirm Password', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
-                            const SizedBox(height: 8),
-                            TextField(
-                              controller: _confirmPasswordController,
-                              obscureText: true,
-                              style: TextStyle(color: textColor),
-                              decoration: InputDecoration(
-                                hintText: 'Confirm new password',
-                                hintStyle: TextStyle(color: subtextColor),
-                                filled: true,
-                                fillColor: inputBg,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(color: accentColor, width: 2),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 32),
-                            // Update Password Button
-                            SizedBox(
-                              width: double.infinity,
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(12),
-                                onTap: provider.isPasswordLoading ? null : _updatePassword,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(colors: [Color(0xFF0d9488), Color(0xFF14b8a6)]),
-                                    borderRadius: BorderRadius.circular(12),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.10),
-                                        blurRadius: 10,
-                                        offset: Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      if (provider.isPasswordLoading)
-                                        SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                        )
-                                      else
-                                        Text(
-                                          'Update Password',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 32),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
+          ),
+        );
       },
     );
   }

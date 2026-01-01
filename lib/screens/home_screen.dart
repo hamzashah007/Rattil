@@ -5,6 +5,7 @@ import 'package:rattil/providers/home_provider.dart';
 import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/providers/drawer_provider.dart';
 import 'package:rattil/providers/auth_provider.dart';
+import 'package:rattil/providers/revenuecat_provider.dart';
 import 'package:rattil/utils/theme_colors.dart';
 import 'package:rattil/widgets/app_bar_widget.dart';
 import 'package:rattil/widgets/quran_carousel.dart';
@@ -18,7 +19,6 @@ import 'package:rattil/screens/package_detail_screen.dart';
 import 'package:rattil/screens/transaction_history_screen.dart';
 import 'package:rattil/screens/notifications_screen.dart';
 import 'package:rattil/screens/auth/sign_in.dart';
-import 'package:rattil/providers/revenuecat_provider.dart';
 import 'package:rattil/providers/notification_provider.dart';
 
 // Method channel for moving app to background
@@ -152,7 +152,10 @@ class _HomeScreenState extends State<HomeScreen> {
             TextButton(
               onPressed: () async {
                 Navigator.pop(dialogContext);
-                await Provider.of<AuthProvider>(context, listen: false).signOut();
+                final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                final revenueCatProvider = Provider.of<RevenueCatProvider>(context, listen: false);
+                
+                await authProvider.signOut(revenueCatProvider: revenueCatProvider);
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(builder: (context) => SignInScreen()),

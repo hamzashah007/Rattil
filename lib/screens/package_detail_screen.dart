@@ -8,6 +8,9 @@ import 'package:rattil/providers/revenuecat_provider.dart';
 import 'package:rattil/providers/notification_provider.dart';
 import 'package:rattil/screens/subscriber_dashboard_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:rattil/widgets/subscription_info_dialog.dart';
+import 'package:rattil/providers/auth_provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class PackageDetailScreen extends StatefulWidget {
   final models.Package package;
@@ -37,6 +40,22 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
     debugPrint('   - Name: ${widget.package.name}');
     debugPrint('   - ID: ${widget.package.id}');
     debugPrint('   - Price: \$${widget.package.price}');
+    
+    // Show subscription information dialog first (Apple Guideline 3.1.2 compliance)
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      builder: (context) => SubscriptionInfoDialog(
+        package: widget.package,
+        onConfirm: () async {
+          await _processPurchase(context);
+        },
+      ),
+    );
+  }
+
+  Future<void> _processPurchase(BuildContext context) async {
+    debugPrint('✅ [PackageDetailScreen] User confirmed subscription info, proceeding with purchase');
     
     final revenueCat = context.read<RevenueCatProvider>();
     debugPrint('⏳ [PackageDetailScreen] Initiating purchase...');
@@ -130,7 +149,178 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
           margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
         ),
       );
+      
+      // Check if user is in guest mode and show email collection dialog
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      if (authProvider.isGuest) {
+        debugPrint('📧 [PackageDetailScreen] Guest user subscribed - showing email collection dialog');
+        await Future.delayed(const Duration(milliseconds: 500)); // Small delay after success message
+        if (mounted) {
+          _showGuestEmailCollectionDialog(widget.package.productId);
+        }
+      }
     }
+  }
+  
+  /// Show email collection dialog for guest subscribers
+  Future<void> _showGuestEmailCollectionDialog(String productId) async {
+    final emailController = TextEditingController();
+    final nameController = TextEditingController();
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final isDarkMode = themeProvider.isDarkMode;
+    
+    // Colors for dark/light mode
+    final dialogBg = isDarkMode ? const Color(0xFF1F2937) : Colors.white;
+    final textColor = isDarkMode ? Colors.white : const Color(0xFF111827);
+    final subtitleColor = isDarkMode ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280);
+    final infoBg = isDarkMode ? const Color(0xFF0f766e).withOpacity(0.2) : const Color(0xFFccfbf1);
+    final infoBorder = isDarkMode ? const Color(0xFF5eead4) : const Color(0xFF14b8a6);
+    final infoText = isDarkMode ? const Color(0xFF5eead4) : const Color(0xFF0f766e);
+    
+    return showDialog(
+      context: context,
+      barrierDismissible: false, // Must provide email
+      builder: (context) => AlertDialog(
+        backgroundColor: dialogBg,
+        title: Text(
+          'Welcome to Rattil',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor),
+        ),
+        content: SizedBox(
+          width: double.maxFinite, // Full width dialog
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'To access Zoom classes and get full benefits, please provide your email:',
+                  style: TextStyle(fontSize: 14, color: subtitleColor),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: emailController,
+                  style: TextStyle(color: textColor),
+                  decoration: InputDecoration(
+                    labelText: 'Email *',
+                    labelStyle: TextStyle(color: subtitleColor),
+                    hintText: 'example@email.com',
+                    hintStyle: TextStyle(color: subtitleColor.withOpacity(0.5)),
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.email, color: const Color(0xFF0d9488)),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: nameController,
+                  style: TextStyle(color: textColor),
+                  decoration: InputDecoration(
+                    labelText: 'Name (Optional)',
+                    labelStyle: TextStyle(color: subtitleColor),
+                    hintText: 'Your Name',
+                    hintStyle: TextStyle(color: subtitleColor.withOpacity(0.5)),
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.person, color: const Color(0xFF0d9488)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: infoBg,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: infoBorder),
+                  ),
+                  child: Text(
+                    'This will help us:\n• Add you to Zoom classes\n• Send important updates\n• Provide better support',
+                    style: TextStyle(fontSize: 12, color: infoText),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('You can provide your email later from Settings.'),
+                  backgroundColor: Colors.orange,
+                  behavior: SnackBarBehavior.floating,
+                  margin: EdgeInsets.only(bottom: 60, left: 16, right: 16),
+                ),
+              );
+            },
+            child: Text(
+              'Skip for Now',
+              style: TextStyle(color: isDarkMode ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final email = emailController.text.trim();
+              if (email.isEmpty || !email.contains('@')) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please enter a valid email address.'),
+                    backgroundColor: Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                    margin: EdgeInsets.only(bottom: 60, left: 16, right: 16),
+                  ),
+                );
+                return;
+              }
+              
+              try {
+                // Save to Firestore
+                await FirebaseFirestore.instance.collection('guest_subscribers').add({
+                  'email': email,
+                  'name': nameController.text.trim().isEmpty ? null : nameController.text.trim(),
+                  'mode': 'guest',
+                  'productId': productId,
+                  'subscribedAt': FieldValue.serverTimestamp(),
+                  'platform': Theme.of(context).platform.toString(),
+                });
+                
+                debugPrint('✅ [PackageDetailScreen] Guest subscriber email saved: $email');
+                
+                Navigator.pop(context);
+                
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Thank you! We\'ll add you to Zoom classes soon.'),
+                      backgroundColor: Color(0xFF0d9488),
+                      behavior: SnackBarBehavior.floating,
+                      margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
+                    ),
+                  );
+                }
+              } catch (e) {
+                debugPrint('❌ [PackageDetailScreen] Error saving guest email: $e');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error saving email. Please try again.'),
+                    backgroundColor: Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                    margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0d9488),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -481,59 +671,118 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            // Restore Purchases Button
+            // Restore Purchases Button - Prominent style matching Packages Screen
             Consumer<RevenueCatProvider>(
               builder: (context, revenueCat, _) {
                 final isRestoring = revenueCat.isRestoringPurchases;
-                return SizedBox(
-                  width: double.infinity,
-                  child: TextButton(
-                    onPressed: isRestoring
-                        ? null
-                        : () async {
-                            revenueCat.setIsRestoringPurchases(true);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Restoring purchases...'),
-                                behavior: SnackBarBehavior.floating,
-                                margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
-                              ),
-                            );
-                            final result = await revenueCat.restorePurchases();
-                            revenueCat.setIsRestoringPurchases(false);
-                            if (result == true) {
+                return GestureDetector(
+                  onTap: isRestoring
+                      ? null
+                      : () async {
+                          debugPrint('🔄 [PackageDetailScreen] ========== RESTORE PURCHASES TAPPED ==========');
+                          debugPrint('👆 [PackageDetailScreen] User tapped Restore Purchases button');
+                          debugPrint('📦 [PackageDetailScreen] Current package: ${widget.package.name} (ID: ${widget.package.id})');
+                          debugPrint('⏱️ [PackageDetailScreen] Timestamp: ${DateTime.now()}');
+                          debugPrint('🚀 [PackageDetailScreen] Setting isRestoringPurchases = true');
+                          revenueCat.setIsRestoringPurchases(true);
+                          try {
+                            debugPrint('📞 [PackageDetailScreen] Calling revenueCat.restorePurchases()...');
+                            final info = await revenueCat.restorePurchases();
+                            debugPrint('✅ [PackageDetailScreen] restorePurchases() call completed');
+                            debugPrint('📊 [PackageDetailScreen] Result: ${info != null ? "CustomerInfo received" : "null (cancelled or no purchases)"}');
+                            if (!mounted) {
+                              debugPrint('⚠️ [PackageDetailScreen] Widget not mounted, skipping snackbar');
+                              return;
+                            }
+                            if (revenueCat.errorMessage != null) {
+                              debugPrint('❌ [PackageDetailScreen] Error detected: ${revenueCat.errorMessage}');
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('Purchases restored successfully!'),
+                                  content: Text(revenueCat.errorMessage!),
+                                  backgroundColor: Colors.red,
+                                  behavior: SnackBarBehavior.floating,
+                                  margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
+                                ),
+                              );
+                            } else if (info != null) {
+                              debugPrint('✅ [PackageDetailScreen] Success! Purchases restored');
+                              debugPrint('📦 [PackageDetailScreen] Active subscriptions: ${info.activeSubscriptions.length}');
+                              debugPrint('🎫 [PackageDetailScreen] Active entitlements: ${info.entitlements.active.length}');
+                              
+                              // Refresh customer info and offerings to update entire app
+                              await revenueCat.refreshCustomerInfo();
+                              await revenueCat.refreshOfferings();
+                              debugPrint('🔄 [PackageDetailScreen] Refreshed customer info and offerings globally');
+                              
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text('Purchases restored successfully!'),
                                   backgroundColor: Color(0xFF0d9488),
                                   behavior: SnackBarBehavior.floating,
                                   margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
                                 ),
                               );
                             } else {
+                              debugPrint('⚠️ [PackageDetailScreen] No purchases found or user cancelled');
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('No purchases found or restore failed.'),
-                                  backgroundColor: Colors.red,
+                                  content: const Text('No purchases to restore.'),
+                                  backgroundColor: Colors.orange,
                                   behavior: SnackBarBehavior.floating,
                                   margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
                                 ),
                               );
                             }
-                          },
-                    style: TextButton.styleFrom(
-                      foregroundColor: Color(0xFF0d9488),
+                          } finally {
+                            debugPrint('🏁 [PackageDetailScreen] Setting isRestoringPurchases = false (finally block)');
+                            revenueCat.setIsRestoringPurchases(false);
+                            debugPrint('🔄 [PackageDetailScreen] ========== RESTORE PURCHASES COMPLETED ==========');
+                          }
+                        },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.ease,
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      gradient: isRestoring
+                          ? LinearGradient(colors: [Colors.grey.shade400, Colors.grey.shade300])
+                          : LinearGradient(colors: [Color(0xFF0d9488), Color(0xFF14b8a6)]),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.10),
+                          blurRadius: 10,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    child: isRestoring
-                        ? SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              color: Color(0xFF0d9488),
-                              strokeWidth: 2.5,
-                            ),
-                          )
-                        : Text('Restore Purchases'),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        isRestoring
+                            ? SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : Icon(Icons.restore, color: Colors.white),
+                        const SizedBox(width: 10),
+                        Text(
+                          isRestoring ? 'Restoring...' : 'Restore Purchases',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
