@@ -152,8 +152,8 @@ class _SplashScreenState extends State<SplashScreen>
                     scale: _pulseAnimation,
                     child: SvgPicture.asset(
                       'assets/icon/app_icon.svg',
-                      width: 150,
-                      height: 150,
+                      width: 130,
+                      height: 130,
                       colorFilter: ColorFilter.mode(white, BlendMode.srcIn),
                     ),
                   ),

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:rattil/providers/theme_provider.dart';
 import 'package:rattil/providers/drawer_provider.dart';
 import 'package:rattil/providers/auth_provider.dart';
+import 'package:in_app_review/in_app_review.dart';
 
 class DrawerMenu extends StatelessWidget {
   final VoidCallback closeDrawer;
@@ -201,9 +202,16 @@ class DrawerMenu extends StatelessWidget {
                       context,
                       icon: Icons.star_rate,
                       text: 'Rate our App',
-                      onTap: () {
+                      onTap: () async {
                         HapticFeedback.lightImpact();
-                        handleNavigation('/rate');
+                        final InAppReview inAppReview = InAppReview.instance;
+                        if (await inAppReview.isAvailable()) {
+                          await inAppReview.requestReview();
+                        } else {
+                          // TODO: Replace 'YOUR_APP_STORE_ID' with your real App Store ID
+                          await inAppReview.openStoreListing(appStoreId: 'YOUR_APP_STORE_ID');
+                        }
+                        closeDrawer();
                       },
                       textColor: textColor,
                       hoverBg: hoverBg,

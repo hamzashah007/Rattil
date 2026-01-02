@@ -698,10 +698,11 @@ class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
     debugPrint('🔄 [RevenueCatProvider] ========== RESTORE PURCHASES STARTED ==========');
     debugPrint('📱 [RevenueCatProvider] Initiating restore purchases flow...');
     
-    isPurchasing = true;
+    // Use isRestoringPurchases instead of isPurchasing to avoid conflicts
+    isRestoringPurchases = true;
     errorMessage = null;
     notifyListeners();
-    debugPrint('✅ [RevenueCatProvider] Set isPurchasing = true, cleared errorMessage');
+    debugPrint('✅ [RevenueCatProvider] Set isRestoringPurchases = true, cleared errorMessage');
     
     try {
       debugPrint('🍎 [RevenueCatProvider] Calling Purchases.restorePurchases() - Contacting Apple...');
@@ -757,9 +758,9 @@ class RevenueCatProvider extends ChangeNotifier with WidgetsBindingObserver {
       debugPrint('❌ [RevenueCatProvider] Error message set: $errorMessage');
       return null;
     } finally {
-      isPurchasing = false;
+      isRestoringPurchases = false;
       notifyListeners();
-      debugPrint('🏁 [RevenueCatProvider] Set isPurchasing = false, notified listeners');
+      debugPrint('🏁 [RevenueCatProvider] Set isRestoringPurchases = false, notified listeners');
       debugPrint('🔄 [RevenueCatProvider] ========== RESTORE PURCHASES ENDED ==========');
     }
   }

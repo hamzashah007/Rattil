@@ -40,15 +40,38 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
     debugPrint('   - Name: ${widget.package.name}');
     debugPrint('   - ID: ${widget.package.id}');
     debugPrint('   - Price: \$${widget.package.price}');
-    
-    // Show subscription information dialog first (Apple Guideline 3.1.2 compliance)
+
+    final revenueCat = context.read<RevenueCatProvider>();
+    if (revenueCat.hasAccess) {
+      final currentSubscribedId = revenueCat.customerInfo?.entitlements.active[RevenueCatProvider.entitlementId]?.productIdentifier;
+      final productId = widget.package.productId;
+      if (currentSubscribedId != null && currentSubscribedId != productId) {
+        // Show only the switch dialog
+        if (!mounted) return;
+        final shouldProceed = await showDialog<bool>(
+          context: context,
+          builder: (context) => SubscriptionInfoDialog(
+            package: widget.package,
+            isSwitch: true,
+            currentPackageName: currentSubscribedId,
+            onConfirm: () async {
+              await _completePurchase(context);
+            },
+          ),
+        );
+        if (shouldProceed != true) return;
+        // Only proceed if user confirms
+        return;
+      }
+    }
+    // Show normal subscribe dialog if not switching
     if (!mounted) return;
     await showDialog(
       context: context,
       builder: (context) => SubscriptionInfoDialog(
         package: widget.package,
         onConfirm: () async {
-          await _processPurchase(context);
+          await _completePurchase(context);
         },
       ),
     );
@@ -90,45 +113,45 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
         final isDarkMode = themeProvider.isDarkMode;
         final shouldProceed = await showDialog<bool>(
           context: context,
-          builder: (context) {
-            final dialogBg = isDarkMode ? const Color(0xFF1F2937) : Colors.white;
-            final textColor = isDarkMode ? Colors.white : const Color(0xFF111827);
-            final subtitleColor = isDarkMode ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280);
-            final tealIcon = const Color(0xFF0d9488);
-            final tealBg = isDarkMode ? const Color(0xFF0f766e).withOpacity(0.2) : const Color(0xFFccfbf1);
-            final tealBorder = isDarkMode ? const Color(0xFF5eead4) : const Color(0xFF5eead4);
-            final tealText = isDarkMode ? const Color(0xFF5eead4) : const Color(0xFF0f766e);
-            return AlertDialog(
-              backgroundColor: dialogBg,
-              title: Text('Switch Package?', style: TextStyle(color: textColor)),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('You are currently subscribed to another package.', style: TextStyle(color: textColor)),
-                  const SizedBox(height: 12),
-                  Text('Purchasing this package will:', style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
-                  const SizedBox(height: 8),
-                  Row(children: [Icon(Icons.arrow_forward, size: 16, color: tealIcon), const SizedBox(width: 4), Expanded(child: Text('Replace your current subscription', style: TextStyle(color: textColor)))]),
-                  Row(children: [Icon(Icons.arrow_forward, size: 16, color: tealIcon), const SizedBox(width: 4), Expanded(child: Text('Cancel your existing package', style: TextStyle(color: textColor)))]),
-                  Row(children: [Icon(Icons.arrow_forward, size: 16, color: tealIcon), const SizedBox(width: 4), Expanded(child: Text('Activate this package immediately', style: TextStyle(color: textColor)))]),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: tealBg, borderRadius: BorderRadius.circular(4), border: Border.all(color: tealBorder, width: 1)),
-                    child: Text('Note: You can only have one active package at a time.', style: TextStyle(fontWeight: FontWeight.bold, color: tealText, fontSize: 12)),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(context, false), child: Text('Cancel', style: TextStyle(color: subtitleColor))),
-                ElevatedButton(onPressed: () => Navigator.pop(context, true), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0d9488), foregroundColor: Colors.white), child: const Text('Switch Package')),
-              ],
-            );
-          },
+          builder: (context) => SubscriptionInfoDialog(
+            package: widget.package,
+            isSwitch: true,
+            currentPackageName: currentSubscribedId, // pass current package name if available
+            onConfirm: () async {
+              await _completePurchase(context);
+            },
+          ),
         );
         if (shouldProceed != true) return;
       }
+    }
+    await _completePurchase(context);
+  }
+
+  Future<void> _completePurchase(BuildContext context) async {
+    final revenueCat = context.read<RevenueCatProvider>();
+    if (revenueCat.offerings?.current == null) {
+      await revenueCat.refreshOfferings();
+    }
+    final productId = widget.package.productId;
+    final rcPackage = revenueCat.offerings?.current?.availablePackages.firstWhere(
+      (pkg) => pkg.storeProduct.identifier == productId,
+      orElse: () => revenueCat.offerings!.current!.availablePackages.isNotEmpty
+        ? revenueCat.offerings!.current!.availablePackages.first
+        : throw StateError('No available packages'),
+    );
+    if (rcPackage == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Product not available. Please check your connection and try again.'),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
+        ),
+      );
+      return;
     }
     final customerInfo = await revenueCat.purchasePackage(rcPackage);
     if (!mounted) return;
@@ -149,12 +172,10 @@ class _PackageDetailScreenState extends State<PackageDetailScreen> {
           margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
         ),
       );
-      
-      // Check if user is in guest mode and show email collection dialog
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       if (authProvider.isGuest) {
         debugPrint('📧 [PackageDetailScreen] Guest user subscribed - showing email collection dialog');
-        await Future.delayed(const Duration(milliseconds: 500)); // Small delay after success message
+        await Future.delayed(const Duration(milliseconds: 500));
         if (mounted) {
           _showGuestEmailCollectionDialog(widget.package.productId);
         }

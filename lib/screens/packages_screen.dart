@@ -15,6 +15,7 @@ import 'package:rattil/providers/auth_provider.dart';
 import 'package:rattil/screens/subscriber_dashboard_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:rattil/widgets/subscription_info_dialog.dart';
 
 class PackagesScreen extends StatefulWidget {
   final bool showAppBar;
@@ -27,7 +28,6 @@ class PackagesScreen extends StatefulWidget {
 class _PackagesScreenState extends State<PackagesScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final int notificationCount = 2;
-  bool _restoreBuffer = false;
 
   void _onBottomBarTap(BuildContext context, int index) {
     final provider = Provider.of<PackagesProvider>(context, listen: false);
@@ -59,18 +59,6 @@ class _PackagesScreenState extends State<PackagesScreen> {
 
   void _handleLogout(BuildContext context) {
     _closeDrawer(context);
-  }
-
-  void _startRestoreBuffer() {
-    setState(() {
-      _restoreBuffer = true;
-    });
-  }
-
-  void _endRestoreBuffer() {
-    setState(() {
-      _restoreBuffer = false;
-    });
   }
   
   /// Show email collection dialog for guest subscribers
@@ -276,9 +264,8 @@ class _PackagesScreenState extends State<PackagesScreen> {
         // Find current package name for better messaging
         String currentPackageName = 'your current package';
         try {
-          final currentPackageIdInt = int.parse(currentSubscribedId);
           final currentPkg = models.packages.firstWhere(
-            (pkg) => pkg.id == currentPackageIdInt,
+            (pkg) => pkg.productId == currentSubscribedId,
             orElse: () => models.packages.first,
           );
           currentPackageName = currentPkg.name;
@@ -288,124 +275,25 @@ class _PackagesScreenState extends State<PackagesScreen> {
         
         // Show warning dialog
         if (!mounted) return;
+        final parentContext = context; // Capture parent context for Provider
         final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
         final isDarkMode = themeProvider.isDarkMode;
         final shouldProceed = await showDialog<bool>(
           context: context,
-          builder: (context) {
-            // Dialog colors for dark/light mode
-            final dialogBg = isDarkMode ? const Color(0xFF1F2937) : Colors.white;
-            final textColor = isDarkMode ? Colors.white : const Color(0xFF111827);
-            final subtitleColor = isDarkMode ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280);
-            final tealIcon = const Color(0xFF0d9488); // Teal-600 (app primary)
-            final tealBg = isDarkMode ? const Color(0xFF0f766e).withOpacity(0.2) : const Color(0xFFccfbf1); // Teal-100/700 with opacity
-            final tealBorder = isDarkMode ? const Color(0xFF5eead4) : const Color(0xFF5eead4); // Teal-300
-            final tealText = isDarkMode ? const Color(0xFF5eead4) : const Color(0xFF0f766e); // Teal-300/700
-            
-            return AlertDialog(
-              backgroundColor: dialogBg,
-              title: Text(
-                'Switch Package?',
-                style: TextStyle(color: textColor),
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'You are currently subscribed to $currentPackageName.',
-                    style: TextStyle(color: textColor),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Purchasing this package will:',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: textColor,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.arrow_forward, size: 16, color: tealIcon),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          'Replace your current subscription',
-                          style: TextStyle(color: textColor),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Icon(Icons.arrow_forward, size: 16, color: tealIcon),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          'Cancel your existing package',
-                          style: TextStyle(color: textColor),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Icon(Icons.arrow_forward, size: 16, color: tealIcon),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          'Activate this package immediately',
-                          style: TextStyle(color: textColor),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: tealBg,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: tealBorder, width: 1),
-                    ),
-                    child: Text(
-                      'Note: You can only have one active package at a time.',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: tealText,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: Text(
-                    'Cancel',
-                    style: TextStyle(color: subtitleColor),
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0d9488),
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('Switch Package'),
-                ),
-              ],
-            );
-          },
+          builder: (context) => SubscriptionInfoDialog(
+            package: uiPackage,
+            isSwitch: true,
+            currentPackageName: currentPackageName,
+            onConfirm: () async {
+              await _completePurchase(uiPackage, index, parentContext); // Use parentContext here
+            },
+          ),
         );
         
         if (shouldProceed != true) {
           debugPrint('🚫 [PackagesScreen] User cancelled package switch');
           return; // User cancelled
         }
-        debugPrint('✅ [PackagesScreen] User confirmed package switch');
       }
     }
     
@@ -654,6 +542,91 @@ class _PackagesScreenState extends State<PackagesScreen> {
     }
   }
 
+  Future<void> _completePurchase(models.Package uiPackage, int index, BuildContext context) async {
+    final revenueCat = context.read<RevenueCatProvider>();
+    // Ensure offerings are loaded
+    if (revenueCat.offerings?.current == null) {
+      await revenueCat.refreshOfferings();
+    }
+    final productId = uiPackage.productId;
+    final rcPackage = revenueCat.findPackageByStoreProductId(productId);
+    if (rcPackage == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Product not available. Please check your connection and try again.'),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
+        ),
+      );
+      return;
+    }
+    final packagesProvider = Provider.of<PackagesProvider>(context, listen: false);
+    packagesProvider.setPurchasingIndex(index);
+    await Future.microtask(() {});
+    bool didTimeout = false;
+    final purchaseFuture = revenueCat.purchasePackage(rcPackage);
+    final customerInfo = await purchaseFuture.timeout(
+      const Duration(seconds: 20),
+      onTimeout: () {
+        didTimeout = true;
+        return null;
+      },
+    );
+    if (didTimeout) {
+      packagesProvider.clearPurchasingIndex();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Purchase timed out. Please check your connection and try again.'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
+          ),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    if (revenueCat.errorMessage != null) {
+      packagesProvider.clearPurchasingIndex();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(revenueCat.errorMessage!),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
+        ),
+      );
+      return;
+    } else if (customerInfo != null) {
+      packagesProvider.clearPurchasingIndex();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Subscription activated! Welcome to Rattil Packages.',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: Color(0xFF0d9488),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(
+            bottom: 60,
+            left: 16,
+            right: 16,
+          ),
+        ),
+      );
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      if (authProvider.isGuest) {
+        debugPrint('📧 [PackagesScreen] Guest user subscribed - showing email collection dialog');
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          _showGuestEmailCollectionDialog(uiPackage.productId);
+        }
+      }
+    }
+  }
+
   Widget _getScreenContent(BuildContext context) {
     final provider = Provider.of<PackagesProvider>(context);
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -749,120 +722,111 @@ class _PackagesScreenState extends State<PackagesScreen> {
                       child: Consumer<RevenueCatProvider>(
                         builder: (context, revenueCat, _) {
                           final isRestoring = revenueCat.isRestoringPurchases;
-                          final isBuffering = _restoreBuffer;
-                          final isDisabled = isRestoring || isBuffering;
-                          return Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: isDisabled
-                                  ? null
-                                  : () async {
-                                      _startRestoreBuffer();
-                                      debugPrint('🔄 [PackagesScreen] ========== RESTORE PURCHASES TAPPED ==========');
-                                      debugPrint('👆 [PackagesScreen] User tapped Restore Purchases button');
-                                      debugPrint('⏱️ [PackagesScreen] Timestamp: \\${DateTime.now()}');
-                                      debugPrint('🚀 [PackagesScreen] Setting isRestoringPurchases = true');
-                                      revenueCat.setIsRestoringPurchases(true);
-                                      try {
-                                        debugPrint('📞 [PackagesScreen] Calling revenueCat.restorePurchases()...');
-                                        final info = await revenueCat.restorePurchases();
-                                        debugPrint('✅ [PackagesScreen] restorePurchases() call completed');
-                                        debugPrint('📊 [PackagesScreen] Result: \\${info != null ? "CustomerInfo received" : "null (cancelled or no purchases)"}');
-                                        if (!mounted) {
-                                          debugPrint('⚠️ [PackagesScreen] Widget not mounted, skipping snackbar');
-                                          _endRestoreBuffer();
-                                          return;
-                                        }
-                                        if (revenueCat.errorMessage != null) {
-                                          debugPrint('❌ [PackagesScreen] Error detected: \\${revenueCat.errorMessage}');
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text(revenueCat.errorMessage!),
-                                              backgroundColor: Colors.red,
-                                              behavior: SnackBarBehavior.floating,
-                                              margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
-                                            ),
-                                          );
-                                        } else if (info != null) {
-                                          debugPrint('✅ [PackagesScreen] Success! Purchases restored');
-                                          debugPrint('📦 [PackagesScreen] Active subscriptions: \\${info.activeSubscriptions.length}');
-                                          debugPrint('🎫 [PackagesScreen] Active entitlements: \\${info.entitlements.active.length}');
-                                          
-                                          // Refresh customer info and offerings to update entire app
-                                          await revenueCat.refreshCustomerInfo();
-                                          await revenueCat.refreshOfferings();
-                                          debugPrint('🔄 [PackagesScreen] Refreshed customer info and offerings globally');
-                                          
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: const Text('Purchases restored successfully!'),
-                                              backgroundColor: Color(0xFF0d9488),
-                                              behavior: SnackBarBehavior.floating,
-                                              margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
-                                            ),
-                                          );
-                                        } else {
-                                          debugPrint('⚠️ [PackagesScreen] No purchases found or user cancelled');
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: const Text('No purchases to restore.'),
-                                              backgroundColor: Colors.orange,
-                                              behavior: SnackBarBehavior.floating,
-                                              margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
-                                            ),
-                                          );
-                                        }
-                                      } finally {
-                                        debugPrint('🏁 [PackagesScreen] Setting isRestoringPurchases = false (finally block)');
-                                        revenueCat.setIsRestoringPurchases(false);
-                                        _endRestoreBuffer();
-                                        debugPrint('🔄 [PackagesScreen] ========== RESTORE PURCHASES COMPLETED ==========');
+                          return GestureDetector(
+                            onTap: isRestoring
+                                ? null
+                                : () async {
+                                    debugPrint('🔄 [PackagesScreen] ========== RESTORE PURCHASES TAPPED ==========');
+                                    debugPrint('👆 [PackagesScreen] User tapped Restore Purchases button');
+                                    debugPrint('⏱️ [PackagesScreen] Timestamp: ${DateTime.now()}');
+                                    debugPrint('🚀 [PackagesScreen] Setting isRestoringPurchases = true');
+                                    revenueCat.setIsRestoringPurchases(true);
+                                    try {
+                                      debugPrint('📞 [PackagesScreen] Calling revenueCat.restorePurchases()...');
+                                      final info = await revenueCat.restorePurchases();
+                                      debugPrint('✅ [PackagesScreen] restorePurchases() call completed');
+                                      debugPrint('📊 [PackagesScreen] Result: ${info != null ? "CustomerInfo received" : "null (cancelled or no purchases)"}');
+                                      if (!mounted) {
+                                        debugPrint('⚠️ [PackagesScreen] Widget not mounted, skipping snackbar');
+                                        return;
                                       }
-                                    },
-                              borderRadius: BorderRadius.circular(12),
-                              child: Ink(
-                                decoration: BoxDecoration(
-                                  gradient: isDisabled
-                                      ? LinearGradient(colors: [Colors.grey.shade400, Colors.grey.shade300])
-                                      : LinearGradient(colors: [Color(0xFF0d9488), Color(0xFF14b8a6)]),
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.10),
-                                      blurRadius: 10,
-                                      offset: Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      (isRestoring || isBuffering)
-                                          ? const SizedBox(
-                                              height: 20,
-                                              width: 20,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                              ),
-                                            )
-                                          : const Icon(Icons.restore, color: Colors.white),
-                                      const SizedBox(width: 10),
-                                      Text(
-                                        (isRestoring || isBuffering) ? 'Restoring...' : 'Restore Purchases',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                                    ],
+                                      if (revenueCat.errorMessage != null) {
+                                        debugPrint('❌ [PackagesScreen] Error detected: ${revenueCat.errorMessage}');
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(revenueCat.errorMessage!),
+                                            backgroundColor: Colors.red,
+                                            behavior: SnackBarBehavior.floating,
+                                            margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
+                                          ),
+                                        );
+                                      } else if (info != null) {
+                                        debugPrint('✅ [PackagesScreen] Success! Purchases restored');
+                                        debugPrint('📦 [PackagesScreen] Active subscriptions: ${info.activeSubscriptions.length}');
+                                        debugPrint('🎫 [PackagesScreen] Active entitlements: ${info.entitlements.active.length}');
+                                        
+                                        // Refresh customer info and offerings to update entire app
+                                        await revenueCat.refreshCustomerInfo();
+                                        await revenueCat.refreshOfferings();
+                                        debugPrint('🔄 [PackagesScreen] Refreshed customer info and offerings globally');
+                                        
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: const Text('Purchases restored successfully!'),
+                                            backgroundColor: Color(0xFF0d9488),
+                                            behavior: SnackBarBehavior.floating,
+                                            margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
+                                          ),
+                                        );
+                                      } else {
+                                        debugPrint('⚠️ [PackagesScreen] No purchases found or user cancelled');
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: const Text('No purchases to restore.'),
+                                            backgroundColor: Colors.orange,
+                                            behavior: SnackBarBehavior.floating,
+                                            margin: const EdgeInsets.only(bottom: 60, left: 16, right: 16),
+                                          ),
+                                        );
+                                      }
+                                    } finally {
+                                      debugPrint('🏁 [PackagesScreen] Setting isRestoringPurchases = false (finally block)');
+                                      revenueCat.setIsRestoringPurchases(false);
+                                      debugPrint('🔄 [PackagesScreen] ========== RESTORE PURCHASES COMPLETED ==========');
+                                    }
+                                  },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              curve: Curves.ease,
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              decoration: BoxDecoration(
+                                gradient: isRestoring
+                                    ? LinearGradient(colors: [Colors.grey.shade400, Colors.grey.shade300])
+                                    : LinearGradient(colors: [Color(0xFF0d9488), Color(0xFF14b8a6)]),
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.10),
+                                    blurRadius: 10,
+                                    offset: Offset(0, 2),
                                   ),
-                                ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  isRestoring
+                                      ? const SizedBox(
+                                          height: 20,
+                                          width: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                          ),
+                                        )
+                                      : const Icon(Icons.restore, color: Colors.white),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    isRestoring ? 'Restoring...' : 'Restore Purchases',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           );
